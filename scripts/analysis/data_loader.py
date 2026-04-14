@@ -71,10 +71,9 @@ def load_well_mixed_data(file_str):
                 # species_keys = 'X' for Schloegl; 'X', 'X2' for Full model
                 species_keys = [i for i in data.files if i not in ['Time', 'ls', 'k', 'tau', 'vol']]
                 
-                # 2. Extract Time (used for trajectory plots)
-                t_data = data['Time']
                 
-                # 3. Extract Species Data
+                
+                # 2. Extract Species Data
                 run_species_log = {}
                 for s in species_keys:
                     
@@ -84,13 +83,16 @@ def load_well_mixed_data(file_str):
                     storage[s].append(species_data)
                     run_species_log[s] = species_data
 
+                # 3. Extract Time (used for trajectory plots)
+                t_data = data['Time']
+
                 # 4. Save individual trajectory
                 trajectories.append({'timescale': t_data, 'species_log': run_species_log})
                 
                 # 5. Capture Metadata (ls or k) - only need to do this once
                 if not metadata:
-                    metadata['rates'] = data['l'] if 'l' in data.files else data['k']
-                    metadata['tau'] = data['tau']
+                    metadata['macrorates'] = data['l'] if 'l' in data.files else data['k']
+                    metadata['timestep'] = data['tau'], metadata['timespan'] = data['t_f']
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
@@ -119,20 +121,33 @@ def load_spatial_full_data(file_str):
     all_data_X, all_data_X2, trajectories = [], [], []
     metadata = {}
     for f in data_files:
-        with np.load(f) as data:
-            t_data = data['Time']
+        try:
+            with np.load(f) as data:
+                t_data = data['Time']
 
-            run_species_log = {}
+                run_species_log = {}
 
-            all_data_X.append(data['X'])
-            all_data_X2.append(data['X2'])
-            run_species_log['X']=data['X']
-            run_species_log['X2']=data['X2']
-            trajectories.append({'timescale': t_data, 'species_log': run_species_log})
+                all_data_X.append(data['X'])
+                all_data_X2.append(data['X2'])
+                run_species_log['X'] = data['X']
+                run_species_log['X2'] = data['X2']
+                trajectories.append({'timescale': t_data, 'species_log': run_species_log})
 
             if not metadata:
                 metadata['macrorates'] = data['l'], metadata['microrates'] = data['kappa']
-                metadata['tau'] = data['tau'], metadata['rates'] = data['l']
-    return 0
+                metadata['timestep'] = data['tau'], metadata['timespan'] = data['t_f']
+                # skip the a, b, volume values at the moment
+                # they are all fixed for the current simulations
+
+        except Exception as e:
+            print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
+
+    # Combine all data points for the Histogram/KDE
+    combined_data = {}
+    combined_data['X'] = all_data_X
+    combined_data['X2'] = all_data_X2
+
+    print(f" Loaded {len(data_files)} runs. Combined {len(combined_data['X'])} points.")
+    return trajectories, combined_data, metadata
 
 
