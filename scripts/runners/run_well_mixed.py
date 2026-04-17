@@ -98,7 +98,7 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
         full_model_bath = Reaction_Full(ls, reactant_full, product_full, ini_con, bath_full, volume=vol)
   
         print(f"  Starting the simulation of full model with Tau-Leaping algorithm (t_f={t_f}, tau={tau})...")
-        particle_run_data, time_run_data = full_model_bath._tauLeaping(seed_value, t_f_steps, tau, save_steps=save_step)
+        particle_run_data, time_run_data = full_model_bath.full_tau_leaping(seed_value, t_f_steps, tau, save_steps=save_step)
         print(" ... the simulation of full model with Tau-Leaping algorithm finished.")
 
         # --- Data Collection ---
@@ -226,17 +226,20 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
 
 def main():
     # ==========================================
-    # ⚙️ CONFIGURATION SWITCH
+    #           CONFIGURATION SWITCH
     # ==========================================
     MODEL_TO_RUN = "full"  # Options: "full" or "schloegl"
+    # change the model to run manually
 
     # ==========================================
     # 1. SHARED SIMULATION PARAMETERS
     # ==========================================
     L = 2.0
     vol = L**3
-    num_runs = 100
-    t_f = 1000
+    a = 10.0
+    b = 20.0
+    num_runs = 2
+    t_f = 10
     tau = 1e-5
     save_every_n_steps = int(10000)
 
@@ -247,10 +250,9 @@ def main():
     # ==========================================
     if MODEL_TO_RUN == "full":
         # Parameters unique to the Full model
-        l = np.array((1.5, 1500, 150, 25, 5.75, 2.5)) # check it again 
-        a = 10.0
-        b = 20.0
-        print(f"The simulation parameter is: {s}")
+        l = np.array((1.5, 1500, 150, 25, 5.75, 25.)) # check it again 
+        
+        print(f"The simulation parameter is: {l}")
         
         # Safely create the folder name using f-strings
         file_str = f"full_model_{l[0]}_{l[1]}"
@@ -260,14 +262,14 @@ def main():
 
     elif MODEL_TO_RUN == "schloegl":
         # Parameters unique to the Schloegl model
-        k = (1/40) * np.array((6., 1., 230., 1000.))
+        k = np.array((0.15, 0.025, 5.75, 25.)) # corresponding to the "l" setting
         print(f"The simulation parameter is: {k}")
         
         # Safely create the folder name
         file_str = f"schloegl_model_{k[0]}_{k[1]}"
         DATA_DIR = get_data_dir(file_str)
         
-        run_save_well_mixed_schloegl(num_runs, save_every_n_steps, t_f, tau, k, vol, DATA_DIR)
+        run_save_well_mixed_schloegl(num_runs, save_every_n_steps, t_f, tau, k, a, b, vol, DATA_DIR)
 
     else:
         print(f"Error: Unknown model type '{MODEL_TO_RUN}'")

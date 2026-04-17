@@ -10,10 +10,13 @@ The data loader return the data in the form of:
     combined_data(dictionary): put all trajectories with the same parameter setting together (timespan could vary, but the way I dealt with it
     seems to confine the timespan to be the same for all trajectory simulations);
     metadata(dictionary): paramter setting about the current data
+
 """
 import numpy as np
 from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
+from scipy.stats import wasserstein_distance
+# from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
 
 
 def find_the_best_bw(x_data):
@@ -60,17 +63,6 @@ def find_the_best_bw(x_data):
     return grid.best_params_['bandwidth']
 
 
-# # Example of a clean metadata box
-# textstr = '\n'.join((
-#     r'$\kappa=%.2f$' % (microrate, ),
-#     r'$\tau=%.4f$' % (tau, ),
-#     r'$T_{final}=%d$' % (t_f, )))
-
-# props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-# ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=10,
-#         verticalalignment='top', bbox=props)
-
-
 def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100):
     """
     Finds a clean upper bound for the x-axis.
@@ -87,7 +79,7 @@ def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100):
     return int(pretty_max)
 
 
-def hist(combined_data_X, bin_width):
+def hist_np(combined_data_X, bin_width):
     """
     Plot the histogram of the distribution of species X collected in all the trajectories
 
@@ -95,5 +87,43 @@ def hist(combined_data_X, bin_width):
     """
     
     upper_bound = get_pretty_upper_bound(combined_data_X)
-    bins = np.arange(0, upper_bound, bin_width)
-    return None
+    bins = np.arange(0, upper_bound, bin_width) + 1
+    density_hist, bins = np.histogram(combined_data_X, bins=bins, density=True)
+
+    return bins, density_hist # (x, y) order 
+
+
+
+def kde_sk(combined_data_X, bw=2.5714):
+
+    """
+    Note on KDE Implementations:
+
+    1. Scikit-learn (KernelDensity):
+    - Uses absolute bandwidth (h), making it easier to compare distributions across scales.
+    - Compatible with GridSearchCV for automated hyperparameter tuning.
+
+    2. SciPy (stats.gaussian_kde):
+    - Uses a bandwidth factor where: bandwidth = bw_method * sigma_data, we can input different values for bw_method.
+    - Harder to keep consistent across different datasets since it depends on data variance.
+
+    Project Default:
+    - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
+    """
+    x_data = combined_data_X[:, np.newaxis] # eg. (5,) -> (5,1)
+
+    upper_bound = get_pretty_upper_bound(combined_data_X)
+    x_plot = np.linspace(0, upper_bound, num=upper_bound)[:, np.newaxis]
+    kde = KernelDensity(kernel="gaussian", bandwidth=bw).fit(x_data)
+    log_dens = kde.score_samples(x_plot) 
+
+    return x_plot[:, 0], np.exp(log_dens) # (x, y) order 
+                                          # x_plot[:,0]: eg. (5,1) -> (5,)
+
+def wasserstein_dist(stat_dist, kde_dist):
+    """
+    stat_dist: the analytical distribution calculated from the CME of the standard model
+
+    kde_dist: the kernel density estimation for the dist. of the simulation data
+    """
+    return wasserstein_distance(stat_dist, kde_dist)

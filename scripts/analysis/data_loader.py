@@ -35,7 +35,7 @@ def get_data_dir(file_str: str) -> Path:
         
 
     # 3. Build the exact requested path to save simulated data
-    data_dir = project_root /"simulation_data"/"well_mixed_data"/ file_str
+    data_dir = project_root /"simulation_data"/file_str
     
     # 4. Create the folders automatically if they don't exist yet!
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,8 @@ def load_well_mixed_data(file_str):
             with np.load(f) as data: # equals to: data = np.load(f)
                 # 1. Automatically detect what species are in this file
                 # species_keys = 'X' for Schloegl; 'X', 'X2' for Full model
-                species_keys = [i for i in data.files if i not in ['Time', 'ls', 'k', 'tau', 'vol']]
+                species_keys = [i for i in data.files if i not in ['Time', 'l', 'k', 'tau', 'vol',
+                                                                   't_f', 'a', 'b']]
                 
                 
                 
@@ -78,8 +79,9 @@ def load_well_mixed_data(file_str):
                 for s in species_keys:
                     
                     # Initialize storage list if it's the first time we see this species
-                    if s not in storage: storage[s] = []
+                    if s not in storage: storage[s] = []    
                     species_data = data[s]
+                    # print(species_data)
                     storage[s].append(species_data)
                     run_species_log[s] = species_data
 
@@ -92,7 +94,8 @@ def load_well_mixed_data(file_str):
                 # 5. Capture Metadata (ls or k) - only need to do this once
                 if not metadata:
                     metadata['macrorates'] = data['l'] if 'l' in data.files else data['k']
-                    metadata['timestep'] = data['tau'], metadata['timespan'] = data['t_f']
+                    metadata['timestep'] = data['tau']
+                    metadata['timespan'] = data['t_f']
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
