@@ -2,10 +2,9 @@ import numpy as np
 import tqdm as tqdm
 from numba import njit
 from numba_progress import ProgressBar
-from simulation.utils.geometry_fast import (generate_position_box_numba, generate_sphere_offsets_numba, diffusion_periodic_step_numba,
-                                            maintain_bath_numba, unimolecularSelectReactant_numba, bimolecular_hetero_candidates_update,
-                                            bimolecular_homo_candidates_update, AddParticleHomoMid_numba_update, SubstituteParticle_numba)
-
+from simulation.utils.geometry_fast import generate_position_box_numba, generate_sphere_offsets_numba, diffusion_periodic_step_numba
+from simulation.utils.reactions_fast import (maintain_bath_numba, unimolecularSelectReactant_numba, bimolecular_hetero_candidates_update,
+                                             bimolecular_homo_candidates_update, AddParticleHomoMid_numba_update, SubstituteParticle_numba)
 
 # ==========================================
 # REACTION LOGIC

@@ -114,18 +114,23 @@ def load_spatial_full_data(file_str):
     """
 
     DATA_DIR = get_data_dir(file_str)
-    file_pattern = os.path.join(DATA_DIR, "run_data_diff_*.npz")
+    file_pattern = os.path.join(DATA_DIR, "run_data_spatial_*.npz")
     data_files = glob.glob(file_pattern)
 
     if not data_files:
         print(f" Error: No files found in {DATA_DIR}")
         return None, None, None
     
-    all_data_X, all_data_X2, trajectories = [], [], []
+    # all_data_X, all_data_X2, trajectories = [], [], []
+    all_data_X = []
+    all_data_X2 = []
+    trajectories = []
     metadata = {}
+
     for f in data_files:
         try:
             with np.load(f) as data:
+                
                 t_data = data['Time']
 
                 run_species_log = {}
@@ -136,11 +141,13 @@ def load_spatial_full_data(file_str):
                 run_species_log['X2'] = data['X2']
                 trajectories.append({'timescale': t_data, 'species_log': run_species_log})
 
-            if not metadata:
-                metadata['macrorates'] = data['l'], metadata['microrates'] = data['kappa']
-                metadata['timestep'] = data['tau'], metadata['timespan'] = data['t_f']
-                # skip the a, b, volume values at the moment
-                # they are all fixed for the current simulations
+                if not metadata:
+                    metadata['macrorates'] = data['l'] # idk why writting them in the same line with a comma dont work
+                    metadata['microrates'] = data['kappa']
+                    metadata['timestep'] = data['tau']
+                    metadata['timespan'] = data['t_f']
+                    # skip the a, b, volume values at the moment
+                    # they are all fixed for the current simulations
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 

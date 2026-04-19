@@ -69,8 +69,9 @@ def initialization(box_shape, keq, c_a, c_b):
 
     return pos_x, pos_x2, pos_a, pos_b
 
-def run_save_spatial(num, t_f, tau, ls, keq, sigmas, diffusions, c_a, c_b, box_shape, result_dir):
-    
+def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape, result_dir):
+
+    keq = ls[0]/ls[1]
     DA, DX, DX2 = diffusions[2], diffusions[0], diffusions[1]
     kappas = calculate_kappas(ls, DA, DX, DX2, sigmas)
     
@@ -144,7 +145,7 @@ def run_save_spatial(num, t_f, tau, ls, keq, sigmas, diffusions, c_a, c_b, box_s
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
         pid = os.getpid() # the simulation with spatial resolution takes a long time, add the "pid" in case the data gets overwritten
                           # when we run multiple simulations at the same time
-        output_filename = os.path.join(DATA_DIR, f"run_data_diff_{i:04d}_pid{pid}.npz") 
+        output_filename = os.path.join(DATA_DIR, f"run_data_spatial_{i:04d}_pid{pid}.npz") 
         np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_log[burn_in_index:],
                             # metadata
                             l=ls, kappa=kappas, tau=tau, box_shape=box_shape, t_f=t_f, a=c_a, b=c_b)
@@ -155,11 +156,11 @@ def run_save_spatial(num, t_f, tau, ls, keq, sigmas, diffusions, c_a, c_b, box_s
     print("---")
     print(f"Finished {NUM_RUNS_TO_DO} runs.")
     print(f"All data saved in '{DATA_DIR}' folder.")
-    print("You can now run 'load_and_plot.py' to see the combined result.")
+    print("Run the data_loader to read the data saved.")
 
 
 def main():
-    """Main execution block containing all physics parameters."""
+    """ Main execution block containing all physics parameters. """
     ###### ================================== 1. parameter setting =====================================
     L = 2. # cubic box length
 
@@ -183,18 +184,18 @@ def main():
     # full model reaction rates
     ls = np.array((1.5, 1500, 150, 150/6, 5.75, 25))
     print("Reaction rates for bistable full model: ",ls)
-    keq = ls[0]/ls[1]
     
     ###### ============================== 2. calculate microscopic rates =================================
 
     num_run = 2
-    t_f = 15
-    tau = 1e-6
+    t_f = 0.0001 # 15
+    tau = 1e-5 # 1e-6
     
     file_str = "diff_equals_1500"   # An example
                                     # change it as needed
     DATA_DIR = get_data_dir(file_str)
-    run_save_spatial(num_run, t_f, tau, keq, sigmas, diffusions, 10, 20, box_shape, DATA_DIR)
+    
+    run_save_spatial(num_run, t_f, tau, ls, sigmas, diffusions, 10, 20, box_shape, DATA_DIR)
 
 
 if __name__ == "__main__":

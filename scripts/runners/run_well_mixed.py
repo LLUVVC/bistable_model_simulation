@@ -211,9 +211,9 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
         output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}.npz")
         # np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:])
-        np.savez_compressed(output_filename, X=data_to_save_X, Time=time_run_data[burn_in_index:],
-        # --- parameters ---
-        k=k, tau=tau, vol=vol, t_f=t_f, a=a, b=b)
+        np.savez_compressed(output_filename, X=data_to_save_X, Time=time_run_data[burn_in_index:], 
+                            # metadata
+                            k=k, tau=tau, vol=vol, t_f=t_f, a=a, b=b)
 
         print(f"  Successfully saved {len(data_to_save_X)} data points to {output_filename}")
 

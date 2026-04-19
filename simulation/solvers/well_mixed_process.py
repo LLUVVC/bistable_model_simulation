@@ -408,6 +408,7 @@ class Reaction_Full(StochasticModelBase):
 
     """Specific solver methods for the Full 6-Reaction Model."""
     
+    ##### the actual solver I 
     def full_tau_leaping(self, seed_value, t_f_steps, h, save_steps):
         '''
         This is now a wrapper that calls the fast, Numba-compiled loop.
