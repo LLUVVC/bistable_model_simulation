@@ -36,11 +36,10 @@ def get_data_dir(file_str: str) -> Path:
 
 
 
-def plot_well_mixed(file_str):
+def plot_well_mixed_traj(file_str):
 
     trajectories, _, metadata = load_well_mixed_data(file_str=file_str)
 
-    title_str = "Well-Mixed Bistable Dynamics"
     # --- select three examples to show the trajectories ---
     # --- plot all the trajectories for now ---
 
@@ -54,10 +53,7 @@ def plot_well_mixed(file_str):
     nrows = int(np.ceil(num_traj / ncols))
 
     fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, 4*nrows))
-    fig_traj.suptitle("Bistable System Dynamics\n" + r"$\mathit{(Well-\ Mixed\ Trajectories)}$", 
-             fontsize=16, y=0.98, fontweight='bold') 
-    # fig_traj.suptitle(title_str + " Trajectories", fontsize=16)
-
+    
     # Flatten axes to 1D array for easy iteration
     axs = np.array(axs).reshape(-1)
 
@@ -84,6 +80,7 @@ def plot_well_mixed(file_str):
         
             ax.set_xlabel('Time ($t$)')
             ax.set_ylabel('Particle Count')
+            ax.set_title(f'Trajectory {i+1}')
             ax.legend(fontsize='small', loc='upper right') # Or 'upper left', etc.
             ax.grid(True, linestyle='--', alpha=0.4, which='both')
             # clean up the frame
@@ -92,7 +89,7 @@ def plot_well_mixed(file_str):
             ax.set_xlim(left=traj['timescale'][0])
 
     elif species_num == 2: # X and X2: full model
-        model = 'full'
+        model = 'Full'
         for i, traj in enumerate(trajectories):
             ax = axs[i]
             x_time = traj['timescale'][::step] * tau
@@ -105,6 +102,7 @@ def plot_well_mixed(file_str):
             ax.fill_between(x_time, y_x2, color=color_x2, step='post', alpha=0.1)
             ax.set_xlabel('Time ($t$)')
             ax.set_ylabel('Particle Count')
+            ax.set_title(f'Trajectory {i+1}')
             ax.legend(fontsize='small', loc='upper right') # Or 'upper left', etc.
             ax.grid(True, linestyle='--', alpha=0.4, which='both')
             # clean up the frame
@@ -129,9 +127,11 @@ def plot_well_mixed(file_str):
     ))
 
     props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
-    fig_traj.text(0.5, 0.81, textstr, transform=fig_traj.transFigure, fontsize=9,
+    fig_traj.text(0.5, 0.85, textstr, transform=fig_traj.transFigure, fontsize=9,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.5)
     
+    fig_traj.suptitle("Bistable System Dynamics\n" + rf"$\mathit{{(Well-Mixed \ {model}\ Trajectories)}}$", 
+             fontsize=16, y=0.98, fontweight='bold') # use backslash before a space for a physical gap between words
     # --- THE KEY FIX: Push the plots down ---
     # top=0.7 means the subplots only occupy the bottom 70% of the figure
     plt.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3)
@@ -162,7 +162,7 @@ def plot_well_mixed(file_str):
 ########## Next step: spatial simulation 
 
 
-def plot_spatial(file_str): 
+def plot_spatial_traj(file_str): 
         
         trajectories, _, metadata = load_spatial_full_data(file_str=file_str)
         # --- select three examples to show the trajectories ---
@@ -178,7 +178,7 @@ def plot_spatial(file_str):
         nrows = int(np.ceil(num_traj / ncols))
 
         fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, 4*nrows))
-        fig_traj.suptitle("Bistable System Dynamics\n" + r"$\mathit{(Spatially\ Resolved\ Trajectories)}$", 
+        fig_traj.suptitle("Bistable System Dynamics\n" + r"$\mathit{(Spatially\ Resolved\ Full\ Trajectories)}$", 
              fontsize=16, y=0.98, fontweight='bold') 
         # fig_traj.suptitle(title_str, fontsize=16, y=0.96) # title_str + " Trajectories"
 
@@ -206,6 +206,7 @@ def plot_spatial(file_str):
             ax.grid(True, linestyle='--', alpha=0.4, which='both')
             ax.set_xlabel('Time ($t$)')
             ax.set_ylabel('Particle Count')
+            ax.set_title(f'Trajectory {i+1}')
             # clean up the frame
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -262,10 +263,10 @@ def main():
 
     if model_resolution == "spatial":
         filestr = "spatial_data/" + filestr
-        plot_spatial(filestr)
+        plot_spatial_traj(filestr)
     elif model_resolution == "well-mixed":
         filestr = "well_mixed_data/" + filestr
-        plot_well_mixed(filestr)
+        plot_well_mixed_traj(filestr)
     else:
         print("Error.")
 

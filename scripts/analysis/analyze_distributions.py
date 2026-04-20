@@ -87,14 +87,14 @@ def hist_np(combined_data_X, bin_width):
     """
     
     upper_bound = get_pretty_upper_bound(combined_data_X)
-    bins = np.arange(0, upper_bound, bin_width) + 1
+    bins = np.arange(0, upper_bound+1, bin_width)
     density_hist, bins = np.histogram(combined_data_X, bins=bins, density=True)
 
     return bins, density_hist # (x, y) order 
 
 
 
-def kde_sk(combined_data_X, bw=2.5714):
+def kde_sk(combined_data_X, bw):
 
     """
     Note on KDE Implementations:
@@ -107,8 +107,6 @@ def kde_sk(combined_data_X, bw=2.5714):
     - Uses a bandwidth factor where: bandwidth = bw_method * sigma_data, we can input different values for bw_method.
     - Harder to keep consistent across different datasets since it depends on data variance.
 
-    Project Default:
-    - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
     """
     x_data = combined_data_X[:, np.newaxis] # eg. (5,) -> (5,1)
 
