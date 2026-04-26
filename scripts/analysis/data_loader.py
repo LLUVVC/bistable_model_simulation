@@ -95,6 +95,9 @@ def load_well_mixed_data(file_str):
                     metadata['macrorates'] = data['l'] if 'l' in data.files else data['k']
                     metadata['timestep'] = data['tau']
                     metadata['timespan'] = data['t_f']
+                    metadata['a'] = data['a']
+                    metadata['b'] = data['b']
+                    metadata['vol'] = data['vol']
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
@@ -145,16 +148,19 @@ def load_spatial_full_data(file_str):
                     metadata['microrates'] = data['kappa']
                     metadata['timestep'] = data['tau']
                     metadata['timespan'] = data['t_f']
-                    # skip the a, b, volume values at the moment
-                    # they are all fixed for the current simulations
+                    metadata['a'] = data['a']
+                    metadata['b'] = data['b']
+                    metadata['box_shape'] = data['box_shape']
+                    metadata['sigma'] = data['sigma']
+                    metadata['D'] = data['D']
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
 
     # Combine all data points for the Histogram/KDE
     combined_data = {}
-    combined_data['X'] = all_data_X
-    combined_data['X2'] = all_data_X2
+    combined_data['X'] = np.concatenate(all_data_X)
+    combined_data['X2'] = np.concatenate(all_data_X2)
 
     print(f" Loaded {len(data_files)} runs. Combined {len(combined_data['X'])} points.")
     return trajectories, combined_data, metadata

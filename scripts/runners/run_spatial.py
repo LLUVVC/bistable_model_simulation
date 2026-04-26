@@ -148,7 +148,9 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         output_filename = os.path.join(DATA_DIR, f"run_data_spatial_{i:04d}_pid{pid}.npz") 
         np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_log[burn_in_index:],
                             # metadata
-                            l=ls, kappa=kappas, tau=tau, box_shape=box_shape, t_f=t_f, a=c_a, b=c_b)
+                            l=ls, kappa=kappas, tau=tau, box_shape=box_shape, t_f=t_f, a=c_a, b=c_b,
+                            sigma=sigmas[0], D=diffusions[0]) # For simplicity, only one scalar for sigma and for D are saved
+                                                              # since we assume they are all equal for different chemicals and reactions
         
         print(f"  Successfully saved {len(data_to_save_X)} data points to {output_filename}")
 
@@ -188,7 +190,7 @@ def main():
     ###### ============================== 2. calculate microscopic rates =================================
 
     num_run = 2
-    t_f = 0.0001 # 15
+    t_f = 0.001 # 15
     tau = 1e-5 # 1e-6
     
     file_str = "diff_equals_1500"   # An example

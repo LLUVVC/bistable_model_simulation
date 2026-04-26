@@ -15,7 +15,8 @@ The data loader return the data in the form of:
 import numpy as np
 from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
-from scipy.stats import wasserstein_distance
+
+
 # from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
 
 
@@ -63,6 +64,8 @@ def find_the_best_bw(x_data):
     return grid.best_params_['bandwidth']
 
 
+
+
 def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100):
     """
     Finds a clean upper bound for the x-axis.
@@ -79,22 +82,26 @@ def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100):
     return int(pretty_max)
 
 
-def hist_np(combined_data_X, bin_width):
+
+
+def hist_np(combined_data_X, upper_bound, bin_width):
     """
     Plot the histogram of the distribution of species X collected in all the trajectories
 
     input: combined_data_X = combined_data['X']
     """
     
-    upper_bound = get_pretty_upper_bound(combined_data_X)
-    bins = np.arange(0, upper_bound+1, bin_width)
-    density_hist, bins = np.histogram(combined_data_X, bins=bins, density=True)
+    # upper_bound = get_pretty_upper_bound(combined_data_X) # try to move it somewhere else
+    
+    bins = np.arange(0, upper_bound+bin_width, bin_width)
+    density_hist, edges = np.histogram(combined_data_X, bins=bins, density=True)
+    hist_bin_center = edges[:-1] + bin_width/2
 
-    return bins, density_hist # (x, y) order 
+    return hist_bin_center, density_hist # (x, y) order 
 
 
 
-def kde_sk(combined_data_X, bw):
+def kde_sk(combined_data_X, upper_bound, bw):
 
     """
     Note on KDE Implementations:
@@ -110,18 +117,9 @@ def kde_sk(combined_data_X, bw):
     """
     x_data = combined_data_X[:, np.newaxis] # eg. (5,) -> (5,1)
 
-    upper_bound = get_pretty_upper_bound(combined_data_X)
     x_plot = np.linspace(0, upper_bound, num=upper_bound)[:, np.newaxis]
     kde = KernelDensity(kernel="gaussian", bandwidth=bw).fit(x_data)
     log_dens = kde.score_samples(x_plot) 
 
     return x_plot[:, 0], np.exp(log_dens) # (x, y) order 
                                           # x_plot[:,0]: eg. (5,1) -> (5,)
-
-def wasserstein_dist(stat_dist, kde_dist):
-    """
-    stat_dist: the analytical distribution calculated from the CME of the standard model
-
-    kde_dist: the kernel density estimation for the dist. of the simulation data
-    """
-    return wasserstein_distance(stat_dist, kde_dist)

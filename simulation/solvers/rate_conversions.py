@@ -11,6 +11,11 @@ import numpy as np
 from scipy.optimize import root_scalar, root
 
 
+def calculate_k_from_l(l):
+    keq = l[0]/l[1]
+    k = np.array((keq*l[2], keq*l[3], l[4], l[5]))
+    return k
+
 def get_reaction_volume(sigma):
     """Calculates the volume of the reaction sphere."""
     return (4.0/3.0) * np.pi * (sigma**3)
@@ -131,7 +136,7 @@ def calculate_kappas(ls, DA, DX, DX2, sigma):
     V_sph_R1 = get_reaction_volume(sigma[0])
     
     # 1. Estimate for R1
-    est_k1p = ls[0] / V_sph_R1
+    est_k1p = 2 * ls[0] / V_sph_R1
     est_k1m = ls[1] # Unimolecular, so kappa approx equals macro rate
     
     # 2. Try solving for R1 Plus
@@ -168,8 +173,8 @@ def calculate_kappas(ls, DA, DX, DX2, sigma):
 
     # Print Summary
     print("\n--- Final Intrinsic Rates (Kappa) ---")
-    print(f"κ₁⁺ = {kappas[0]:.4e} (Est: {est_k1p:.4e})")
-    print(f"κ₁⁻ = {kappas[1]:.4e} (Est: {est_k1m:.4e})")
+    print(f"κ₁⁺ = {kappas[0]:.4e}") # (Est: {est_k1p:.4e})
+    print(f"κ₁⁻ = {kappas[1]:.4e}") # (Est: {est_k1m:.4e})
     print(f"κ₂⁺ = {kappas[2]:.4e}")
     print(f"κ₂⁻ = {kappas[3]:.4e}")
     print(f"κ₃⁺ = {kappas[4]:.4e}")
