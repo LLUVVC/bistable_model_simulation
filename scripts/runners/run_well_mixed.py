@@ -250,7 +250,7 @@ def main():
     # ==========================================
     if MODEL_TO_RUN == "full":
         # Parameters unique to the Full model
-        l = np.array((1.5, 1500, 150, 25, 5.75, 25.)) # check it again 
+        l = np.array((1.5, 1500., 150., 25., 5.75, 25.)) # check it again 
         
         print(f"The simulation parameter is: {l}")
         

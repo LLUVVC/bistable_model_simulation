@@ -2,19 +2,15 @@
 Load the simulation data
 
 for further quantitative analysis
+
+NOT SURE: whether to add the part that checks if the metadata are the same when reading a group of data
+
 """
 import numpy as np
-import matplotlib.pyplot as plt
 import glob
 import os
-import sys
-import random
-from datetime import datetime # Import the datetime module
-from simulation.models.analytical_curve import get_analytical_curve
-
 
 from pathlib import Path
-
 
 def get_data_dir(file_str: str) -> Path:
     """

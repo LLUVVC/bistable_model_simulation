@@ -181,19 +181,19 @@ def main():
     
     ##### the Part to change freely for the corresponding simulation
     # Schloegl's model reaction rates
-    k = (1/40) * np.array((6.,1.,230.,1000))
+    k = np.array(0.15, 0.025, 5.75, 25.)
     print("Reaction rates for bistable schloegl's model: ",k)
     # full model reaction rates
-    ls = np.array((1.5, 1500, 150, 150/6, 5.75, 25))
+    ls = np.array((1.5, 1500., 150., 25., 5.75, 25.))
     print("Reaction rates for bistable full model: ",ls)
     
     ###### ============================== 2. calculate microscopic rates =================================
 
     num_run = 2
-    t_f = 0.001 # 15
+    t_f = 15.
     tau = 1e-5 # 1e-6
     
-    file_str = "diff_equals_1500"   # An example
+    file_str = "diff_equals_1500_1"   # An example
                                     # change it as needed
     DATA_DIR = get_data_dir(file_str)
     
