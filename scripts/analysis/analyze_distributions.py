@@ -15,6 +15,7 @@ The data loader return the data in the form of:
 import numpy as np
 from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
+import time
 
 
 # from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
@@ -35,34 +36,41 @@ def find_the_best_bw(x_data):
     coefficients are big enough.
 
     for spatial process simulations with smaller diffusion coeff. -> TO DO...
+
+    x_data shape: (have a look at my old code) -> NOT FINISHED ...
     """
 
     # --- 1. Sample the data ---
     # originally I tried to use all the data, the process of searching for the best bw is incredibly slow
     # randomly select 50000 indicies without replacement
-    sample_size = 50000
-    x_sample = x_data[sample_size]
+    sample_size = int(min(50000, len(x_data)-1)) # in case the x_data is smaller than the default sample size: 50000
+    random_indices = np.random.choice(x_data.shape[0], sample_size, replace=False)
+    x_sample = x_data[random_indices]
 
     # --- 2. Define the search grid ---
     bandwidth_options = np.linspace(2.0, 30.0, 50) # identified the range through trial
 
+    start_time = time.time()
+
     # --- 3. Configure the grid search --- 
     grid = GridSearchCV(
         KernelDensity(kernel='gaussian'),
-        param_grid = {'bandwidth':bandwidth_options},
+        param_grid = {'bandwidth': bandwidth_options},
         cv = 3, # tried cv=5, but super slow
         n_jobs = -1 # use all cores available
         )
     
-
     # --- 4. Run the search on the sample ---
-    print(f"Running GridSearch on {sample_size} points...")
+    print(f"Running GridSearch on {sample_size + 1} points...")
     grid.fit(x_sample)
 
-    print(f"Best bandwidth found: {grid.best_params_['bandwidth']}")
+    end_time = time.time()
+    time_taken = end_time - start_time
+
+    print(f"*** Best bandwidth found: {grid.best_params_['bandwidth']:.4f} ***")
+    print(f"*** Optimization completed in {time_taken:.2f} seconds ***")
 
     return grid.best_params_['bandwidth']
-
 
 
 

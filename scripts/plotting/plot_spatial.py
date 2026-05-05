@@ -29,7 +29,6 @@ def get_data_dir(file_str: str) -> Path:
     return data_dir
 
 
-
 # Function to format a list of rates into LaTeX scientific notation
 def format_rate_list(rates):
     formatted = []
@@ -44,7 +43,7 @@ def format_rate_list(rates):
 
 
 
-def plot_spatial(file_str, bin_width=2., band_width=2.5714):
+def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -74,6 +73,14 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714):
     combined_data_X = combined_data['X']
     upper_bound = get_pretty_upper_bound(combined_data_X)
     print(f"The calculated upper bound for #X is {upper_bound}")
+
+    if optimize_bw:
+        
+            print("Optimizing bandwidth via GridSearchCV. This might take a moment...")
+
+            band_width = find_the_best_bw(combined_data_X[:, np.newaxis])
+            
+            print("Consider updating your default band_width parameter to this new value.")
 
     hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
     x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
@@ -109,13 +116,12 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714):
     ncols = 2
     nrows = int(np.ceil(num_traj / ncols))
 
-    fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, 5*nrows))
+    header_height = 2.0  # Reserve exactly 2 inches for the title and text box
+    fig_height = 4 * nrows + header_height
+    fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, fig_height))
 
     # Flatten axes to 1D array for easy iteration
     axs = np.array(axs).reshape(-1)
-
-    step = 1 # Only plot every 1000th data point if step = 1000
-    # set step small in the test phase, bc large step would slice out all the data
 
     # Modern color palette (Blue and Orange/Coral)
     color_x = "#0072B2" 
@@ -123,9 +129,9 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714):
 
     for i, traj in enumerate(trajectories):
         ax = axs[i]
-        x_time = traj['timescale'][::step] * tau
-        y_x = traj['species_log']['X'][::step]
-        y_x2 = traj['species_log']['X2'][::step]
+        x_time = traj['timescale'] * tau
+        y_x = traj['species_log']['X']
+        y_x2 = traj['species_log']['X2']
         ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
         ax.plot(x_time, y_x2, color=color_x2, label='X2', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=2)
         # add a subtle shaded area under the curves
@@ -153,21 +159,25 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714):
     ))
 
     props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
-    fig_traj.text(0.5, 0.88, textstr, transform=fig_traj.transFigure, fontsize=8,
+    
+    # --- Dynamically calculate relative positions based on figure height ---
+    title_y = 1.0 - (0.2 / fig_height)         # Title is always 0.2 inches from the top
+    text_y = 1.0 - (1.0 / fig_height)          # Text box is always 1.0 inch from the top
+    rect_top = 1.0 - (header_height / fig_height) # Plot grid stops exactly 2 inches from the top
+    
+    fig_traj.text(0.5, text_y, textstr, transform=fig_traj.transFigure, fontsize=8,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
 
-    fig_traj.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3)
-    
-    fig_traj.tight_layout(rect=[0, 0, 1, 0.75])
+    fig_traj.tight_layout(rect=[0, 0, 1, rect_top])
     fig_traj.suptitle("Bistable System Dynamics\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Trajectories}}$", 
-            fontsize=16, y=0.98, fontweight='bold') 
-
+            fontsize=16, y=title_y, fontweight='bold') 
+    
     # --- Push the plots down ---
     # --- for distribution plot ---
     fig_dist.text(0.5, 0.88, textstr, transform=fig_dist.transFigure, fontsize=8,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
     # top=0.7 means the subplots only occupy the bottom 70% of the figure
-    fig_dist.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3)
+    # fig_dist.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3)
     
     fig_dist.tight_layout(rect=[0, 0, 1, 0.75])
     fig_dist.suptitle("Bistable System Distribution\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Distribution}}$",
@@ -195,11 +205,6 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714):
 
 
 def main():
-    ####### edit the part for the best bandwidth
-    ####### to do
-    # new_bw = False
-    # if new_bw:
-    #     find_the_best_bw
 
     filestr =  "diff_equals_1500"
 

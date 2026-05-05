@@ -196,6 +196,13 @@ def AddParticleHomoMid_numba_update(pos_r, pos_p, idx_1, idx_2, box_shape):
     idx_1, idx_2: indices of reacted particles pair - (i,j), i in idx_1 and j in idx_2
     '''
 
+    assert np.all(pos_r >= 0) and np.all(pos_r < box_shape), "pos_r must be wrapped into [0, L)"
+
+    #### OPTIONAL ####
+    #### this part is guatanteed by the upstream function selecting reactants
+    # assert no duplicate reactions:
+    # assert len(np.unique(np.concatenate((idx_1, idx_2)))) == len(idx_1) + len(idx_2)
+
     n_reactions = len(idx_1)
     if n_reactions == 0:
         return pos_r, pos_p
@@ -204,8 +211,9 @@ def AddParticleHomoMid_numba_update(pos_r, pos_p, idx_1, idx_2, box_shape):
     pos2 = pos_r[idx_2]
      
     diff = pos2 - pos1
-    pos1 = pos1 + np.round(diff / box_shape) * box_shape # move particle to pos1 prime, in the 'box' adjacent to pos2
-                                                         # (in the original box).
+    pos1 = pos1 + np.round(diff / box_shape) * box_shape 
+    # move particle to pos1 prime, in the 'box' adjacent to pos2
+    # (in the original box).
     pos_new_products = (pos1 + pos2) * 0.5
     pos_new_products = pos_new_products - np.floor(pos_new_products / box_shape) * box_shape
     

@@ -68,7 +68,6 @@ def load_well_mixed_data(file_str):
                 species_keys = [i for i in data.files if i not in ['Time', 'l', 'k', 'tau', 'vol',
                                                                    't_f', 'a', 'b']]
                                 
-                
                 # 2. Extract Species Data
                 run_species_log = {}
                 for s in species_keys:

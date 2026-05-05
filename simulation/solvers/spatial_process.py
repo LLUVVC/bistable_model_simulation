@@ -21,7 +21,8 @@ def reaction_R1_forward_numba(pos_x, pos_x2, sigma, kappa, h, box_shape):
         return pos_x, pos_x2
 
     react_xa, react_xb = bimolecular_homo_candidates_update(pos_x, sigma, kappa, h, box_shape)
-    pos_x, pos_x2 = AddParticleHomoMid_numba_update(pos_x, pos_x2, react_xa, react_xb, box_shape)
+    pos_x, pos_x2 = AddParticleHomoMid_numba_update(pos_x, pos_x2, react_xa, react_xb, box_shape) # this function includes the 
+                                                                                                  # check for the reaction region (the box)
 
     return pos_x, pos_x2
 
@@ -150,7 +151,7 @@ def run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
     pos_x, pos_x2 = reaction_R1_forward_numba(pos_x, pos_x2, sigmas[0], kappas[0], full_dt, box_shape)
     
     # --- R1 Backward: X2 -> X + X ---
-    '''change 1.'''
+    
     pos_x, pos_x2 = reaction_R1_backward_numba(pos_x, pos_x2, sigmas[1], kappas[1], full_dt, box_shape)
 
     
@@ -169,7 +170,7 @@ def run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
     pos_x, pos_a = reaction_hetero_replacement_numba(pos_x2, pos_x, pos_a, sigmas[3], kappas[3], half_dt, box_shape)
     pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target) 
 
-    # --- R2 Forward: X2 + X -> X2 + A ---
+    # --- R2 Forward: X2 + A -> X2 + X ---
     # pos_a is reduced, new_x_from_a created
     pos_a, pos_x = reaction_hetero_replacement_numba(pos_x2, pos_a, pos_x, sigmas[2], kappas[2], half_dt, box_shape)
     pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target)

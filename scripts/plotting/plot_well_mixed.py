@@ -45,7 +45,7 @@ def get_data_dir(file_str: str) -> Path:
 
 
     
-def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
+def plot_well_mixed(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -67,13 +67,16 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
     nrows = int(np.ceil(num_traj / ncols))
 
     fig_dist, ax = plt.subplots(figsize=(12, 6))
-    fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, 4*nrows))
+    header_height = 2.0  # Reserve exactly 2 inches for the title and text box
+    fig_height = 4 * nrows + header_height
+    fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, fig_height))
     
     # Flatten axes to 1D array for easy iteration
     axs = np.array(axs).reshape(-1)
 
-    step = 1 # Only plot every 1000th data point if step = 1000
+    # step = 1 
     # set step small in testing phases, bc large step would slice out all the data
+    # removed: because the data was sliced when saved to the file.
     
     # Modern color palette (Blue and Orange/Coral)
     # color_x = "#20d1db" 
@@ -89,6 +92,16 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
         combined_data_X = combined_data['X']
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
+
+
+        if optimize_bw:
+        
+            print("Optimizing bandwidth via GridSearchCV. This might take a moment...")
+
+            band_width = find_the_best_bw(combined_data_X[:, np.newaxis])
+            
+            print("Consider updating your default band_width parameter to this new value.")
+
 
         hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
         x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
@@ -120,8 +133,8 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
         ax.spines['right'].set_visible(False)
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale'][::step] * tau
-            y_x = traj['species_log']['X'][::step]
+            x_time = traj['timescale'] * tau # [::step]
+            y_x = traj['species_log']['X']
             
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             # add a subtle shaded area under the curves
@@ -143,6 +156,14 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
         combined_data_X = combined_data['X']
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
+
+        if optimize_bw:
+        
+            print("Optimizing bandwidth via GridSearchCV. This might take a moment...")
+            bw_X_data = combined_data_X[:, np.newaxis]
+            band_width = find_the_best_bw(bw_X_data)
+            
+            print("Consider updating your default band_width parameter to this new value.")
 
         hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
         x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
@@ -172,9 +193,9 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
         ax.spines['right'].set_visible(False)
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale'][::step] * tau
-            y_x = traj['species_log']['X'][::step]
-            y_x2 = traj['species_log']['X2'][::step]
+            x_time = traj['timescale'] * tau
+            y_x = traj['species_log']['X']
+            y_x2 = traj['species_log']['X2']
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             ax.plot(x_time, y_x2, color=color_x2, label='X2', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=2)
             # add a subtle shaded area under the curves
@@ -210,7 +231,7 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
     ))
 
     props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
-    
+
     fig_dist.text(0.5, 0.85, textstr, transform=fig_dist.transFigure, fontsize=8,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
     fig_dist.suptitle(
@@ -221,20 +242,24 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
     )
     fig_dist.tight_layout(rect=[0, 0.05, 1, 0.75])
     
-    # fig_dist.subplots_adjust(top=0.7)
+    # fig_traj.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3) #plt
     
-    fig_traj.text(0.5, 0.85, textstr, transform=fig_traj.transFigure, fontsize=9,
+    # --- Dynamically calculate relative positions based on figure height ---
+    title_y = 1.0 - (0.2 / fig_height)         # Title is always 0.2 inches from the top
+    text_y = 1.0 - (1.0 / fig_height)          # Text box is always 1.0 inch from the top
+    rect_top = 1.0 - (header_height / fig_height) # Plot grid stops exactly 2 inches from the top
+
+    fig_traj.text(0.5, text_y, textstr, transform=fig_traj.transFigure, fontsize=9,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.5)
     
     fig_traj.suptitle(
         r"$\bf{Bistable\ System\ Distribution}$" + "\n" + 
         f"Well-Mixed {model} Trajectories",
         fontsize=16, 
-        y=0.98
+        y=title_y
     )
-    fig_traj.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3) #plt
     
-    fig_traj.tight_layout(rect=[0, 0, 1, 0.82])
+    fig_traj.tight_layout(rect=[0, 0, 1, rect_top])
 
     # --- Get timestamp for filename ---
     # Format as YYYY-MM-DD_HH-MM-SS
@@ -259,15 +284,15 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714):
 
 
 def main():
-    ####### edit the part for the best bandwidth
-    ####### to do
-    # new_bw = False
-    # if new_bw:
-    #     find_the_best_bw
+    """
+    By default, the optimize_bw is set to False,
 
-    filestr =  "full_model_1.5_1500.0" # "schloegl_model_0.15_0.025"
+    it can be manually change to True if needed.
 
-    plot_well_mixed(filestr)
+    """
+    filestr =  "full_model_1.5_1500.0_tf_250_tau2e-6_copy_2" # "schloegl_model_0.15_0.025"
+
+    plot_well_mixed(filestr, optimize_bw=False) # optimize_bw as an input
 
 
 

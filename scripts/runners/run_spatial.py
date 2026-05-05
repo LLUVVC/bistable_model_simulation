@@ -192,12 +192,17 @@ def main():
     num_run = 2
     t_f = 15.
     tau = 1e-5 # 1e-6
+
+    simulation_is_feasible = True if np.sqrt((2*np.max(diffusions))*2*tau) < np.min(sigmas) else False
     
     file_str = "diff_equals_1500_1"   # An example
                                     # change it as needed
     DATA_DIR = get_data_dir(file_str)
-    
-    run_save_spatial(num_run, t_f, tau, ls, sigmas, diffusions, 10, 20, box_shape, DATA_DIR)
+
+    if simulation_is_feasible:
+        run_save_spatial(num_run, t_f, tau, ls, sigmas, diffusions, 10, 20, box_shape, DATA_DIR)
+    else:
+        print("Please reduce the simulation time intervals.")
 
 
 if __name__ == "__main__":

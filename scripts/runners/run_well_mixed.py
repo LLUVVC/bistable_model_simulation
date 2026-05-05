@@ -87,7 +87,7 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
 
     for i in range(start_index, start_index + NUM_RUNS_TO_DO):
         print(f"Run {i}...")
-        seed_value = np.random.randint(0,10000)
+        seed_value = np.random.randint(0, 10000)
         print(f"the current seed value is {seed_value}.") # not necessary, keep for checking
         
         x_init = np.random.randint(low=0, high=400)
@@ -238,9 +238,9 @@ def main():
     vol = L**3
     a = 10.0
     b = 20.0
-    num_runs = 2
-    t_f = 10
-    tau = 1e-5
+    num_runs = 10
+    t_f = 250
+    tau = 2e-6
     save_every_n_steps = int(10000)
 
     print(f"--- Starting Batch Run for {MODEL_TO_RUN.upper()} model ---")
@@ -255,7 +255,7 @@ def main():
         print(f"The simulation parameter is: {l}")
         
         # Safely create the folder name using f-strings
-        file_str = f"full_model_{l[0]}_{l[1]}"
+        file_str = f"full_model_{l[0]}_{l[1]}_tf_{t_f}_tau2e-6"
         DATA_DIR = get_data_dir(file_str)
         
         run_save_well_mixed_full(num_runs, save_every_n_steps, t_f, tau, l, a, b, vol, DATA_DIR)
