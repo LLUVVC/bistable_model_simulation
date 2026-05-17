@@ -18,6 +18,7 @@ from sklearn.model_selection import GridSearchCV
 import time
 
 
+
 # from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
 
 
@@ -74,14 +75,15 @@ def find_the_best_bw(x_data):
 
 
 
-def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100):
+def get_pretty_upper_bound(data, pad_percent=0.05, snap_to=100, percentile=99.5):
     """
     Finds a clean upper bound for the x-axis.
     data: Your particle count array
     pad_percent: How much empty space to leave on the right (10%)
     snap_to: The 'nice' number to round up to (e.g., 50 or 100)
     """
-    raw_max = np.max(data)
+    # raw_max = np.max(data)
+    raw_max = np.percentile(data, percentile)
     # Add 10% breathing room
     padded_max = raw_max * (1 + pad_percent)
     # Round up to the nearest 'snap_to' interval

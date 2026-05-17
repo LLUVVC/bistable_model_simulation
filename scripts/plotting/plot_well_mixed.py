@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
+from scripts.analysis.data_loader import load_well_mixed_data
 from scripts.analysis.analyze_distributions import find_the_best_bw, hist_np, kde_sk, get_pretty_upper_bound
 from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
@@ -45,7 +45,7 @@ def get_data_dir(file_str: str) -> Path:
 
 
     
-def plot_well_mixed(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
+def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_bw=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -59,10 +59,13 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714, optimize_bw=False
     vol = metadata['vol']
     macrorates = metadata['macrorates']
 
+    # slice the data according to the size of tau
+    slice_val = int(1e-5/tau)
+    print(f"For test, the slice size is {slice_val}") # comment out later
     # ============================================================
     # =============== DISTRIBUTION + TRAJ PLOTS ==================
     # ============================================================
-    num_traj = len(trajectories)
+    num_traj = min(len(trajectories), num_traj)
     ncols = 2
     nrows = int(np.ceil(num_traj / ncols))
 
@@ -90,6 +93,7 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714, optimize_bw=False
     if species_num == 1:
         model = 'Schlögl'
         combined_data_X = combined_data['X']
+        combined_data_X = combined_data_X[::slice_val]
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
 
@@ -154,6 +158,7 @@ def plot_well_mixed(file_str, bin_width=2., band_width=2.5714, optimize_bw=False
         model = 'Full'
         
         combined_data_X = combined_data['X']
+        combined_data_X = combined_data_X[::slice_val]
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
 
@@ -289,8 +294,15 @@ def main():
 
     it can be manually change to True if needed.
 
+    TO DO:
+    #############################################
+    #### slice the data before calculate W_d ####
+    #############################################
+    ########## ADDED -> HAVE TO CHECK ###########
+    #############################################
+    
     """
-    filestr =  "full_model_1.5_1500.0_tf_250_tau2e-6_copy_2" # "schloegl_model_0.15_0.025"
+    filestr =  "full_model_1.5_1500.0_tf_500_tau5e-7" # "schloegl_model_0.15_0.025"
 
     plot_well_mixed(filestr, optimize_bw=False) # optimize_bw as an input
 

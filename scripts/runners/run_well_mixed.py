@@ -73,7 +73,7 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
         max_index = -1
         for f in existing_files:
             # Use regex to find the number in 'run_data_0004.npz'
-            match = re.search(r'run_data_(\d+).npz', os.path.basename(f))
+            match = re.search(r"run_data_(\d+)", os.path.basename(f)) # 'run_data_(\d+).npz'
             if match:
                 max_index = max(max_index, int(match.group(1)))
         
@@ -117,7 +117,8 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
 
         # --- Save to File ---
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
-        output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}.npz")
+        pid = os.getpid()
+        output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}_pid{pid}.npz")
         # np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:])
         np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:],
         # --- parameters ---
@@ -167,7 +168,7 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
         max_index = -1
         for f in existing_files:
             # Use regex to find the number in 'run_data_0004.npz'
-            match = re.search(r"run_data_(\d+).npz", os.path.basename(f))
+            match = re.search(r"run_data_(\d+)", os.path.basename(f))
             if match:
                 max_index = max(max_index, int(match.group(1)))
         
@@ -209,7 +210,8 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
 
         # --- Save to File ---
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
-        output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}.npz")
+        pid = os.getpid()
+        output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}_pid{pid}.npz")
         # np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:])
         np.savez_compressed(output_filename, X=data_to_save_X, Time=time_run_data[burn_in_index:], 
                             # metadata
@@ -238,11 +240,13 @@ def main():
     vol = L**3
     a = 10.0
     b = 20.0
-    num_runs = 10
-    t_f = 250
-    tau = 2e-6
-    save_every_n_steps = int(10000)
-
+    num_runs = 3
+    t_f = 500
+    tau = 5e-7
+    save_every_n_steps = int(10000) # otherwise the data is too dense, the savings would be very large
+                                    # note that when comparing data with different tau against each other, 
+                                    # slice the stored data to equalize the data points to be used.
+                                    
     print(f"--- Starting Batch Run for {MODEL_TO_RUN.upper()} model ---")
 
     # ==========================================
@@ -251,12 +255,14 @@ def main():
     if MODEL_TO_RUN == "full":
         # Parameters unique to the Full model
         l = np.array((1.5, 1500., 150., 25., 5.75, 25.)) # check it again 
-        
+
         print(f"The simulation parameter is: {l}")
         
-        # Safely create the folder name using f-strings
-        file_str = f"full_model_{l[0]}_{l[1]}_tf_{t_f}_tau2e-6"
-        DATA_DIR = get_data_dir(file_str)
+        # Safely create the folder name using f-strings 
+        file_str = f"full_model_{l[0]}_{l[1]}_tf_{t_f}_tau{tau:0.0e}"
+        clean_file_str = re.sub(r'e([+-])0', r'e\1', file_str)
+        print(clean_file_str)
+        DATA_DIR = get_data_dir(clean_file_str)
         
         run_save_well_mixed_full(num_runs, save_every_n_steps, t_f, tau, l, a, b, vol, DATA_DIR)
 
