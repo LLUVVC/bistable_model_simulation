@@ -12,7 +12,7 @@ the quality of the current model with its specific paramter settings.
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
+import glob
 import os
 from pathlib import Path
 
@@ -40,6 +40,9 @@ from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from scipy.stats import wasserstein_distance
 from scripts.analysis.analyze_distributions import get_pretty_upper_bound, kde_sk
+from joblib import Parallel, delayed
+
+
 
 def calculate_wd_for_sample(p_states, stat_dist, combined_data_X, upper_bound, band_width):
     """
@@ -55,8 +58,17 @@ def calculate_wd_for_sample(p_states, stat_dist, combined_data_X, upper_bound, b
     return W_d
 
 
+def _single_bootstrap_iteration(trajectories, num_traj_per_batch, slice_val, 
+                                  upper_bound, p_states, stat_dist, band_width):
+    """One single iteration — parallelisable."""
+    sampled_trajs = np.random.choice(trajectories, size=num_traj_per_batch, replace=True)
+    sampled_X = np.concatenate([traj['species_log']['X'][::slice_val] for traj in sampled_trajs])
+    return calculate_wd_for_sample(p_states, stat_dist, sampled_X, upper_bound, band_width)
 
-def run_bootstrap_Wd(file_str, num_traj_per_batch, resolution, iterations=100):
+
+
+
+def run_bootstrap_Wd(file_str, num_traj_per_batch, resolution, iterations=100, n_jobs=5): # or: n_jobs=-1, but i dont wanna exhaust my laptop
 
     """
     Runs the bootstrap analysis for a given batch size.
@@ -95,33 +107,26 @@ def run_bootstrap_Wd(file_str, num_traj_per_batch, resolution, iterations=100):
         print("wrong resolution!")
         return None
 
-    results = []
-    # 2. Run the bootstrap loop
-    for _ in tqdm(range(iterations)):
-        # Randomly select 'num_traj_per_batch' trajectories
-        sampled_trajs = np.random.choice(trajectories, size=num_traj_per_batch, replace=True) # originally replace=False, however that introduces
-                                                                                              # a problem of stds=0 when batch_size is equal to the pool size
-        # Combine the data for just this sample
-        sampled_X = np.concatenate([traj['species_log']['X'][::slice_val] for traj in sampled_trajs])
-        
-        # Calculate W_d using our lean math function
-        wd = calculate_wd_for_sample(
-            p_states, stat_dist, sampled_X, upper_bound, band_width=2.5714
+
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(_single_bootstrap_iteration)(
+            trajectories, num_traj_per_batch, slice_val,
+            upper_bound, p_states, stat_dist, band_width=2.5714
         )
-        results.append(wd)
-        
+        for _ in tqdm((range(iterations)))
+    )
+
     # 4. Return or save the results (mean, std, etc. -> move this part into calculation)
     return np.array(results), metadata
 
 
-def main():
-    resolution = "well_mixed"
-    filestr =  resolution + "_data/" + "full_model_1.5_1500.0_tf_500_tau5e-7"
-    batch_size = np.arange(50,101,20) # could adapt it to the actual number of files available, keep it as it is now 
+def single_group_wd_analysis(resolution, data_file, n_iterations = 100):
+    
+    filestr =  resolution + "_data/" + data_file
+    batch_size = np.arange(20,101,20) # could adapt it to the actual number of files available, keep it as it is now 
     
     means = []
     stds = []
-    n_iterations = 10 # trial number for iterations
     for bs in batch_size:
 
         results, metadata = run_bootstrap_Wd(filestr, bs, resolution, iterations=n_iterations) 
@@ -148,7 +153,7 @@ def main():
     filestr = "Wd_analysis/" + filestr
     DATA_DIR = get_data_dir(filestr)
     os.makedirs(DATA_DIR, exist_ok=True)
-    output_filename = os.path.join(DATA_DIR, f"iter_{n_iterations}.npz")
+    output_filename = os.path.join(DATA_DIR, f"iter_{n_iterations}_tau_{metadata['timestep']}.npz")
     # np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:])
     np.savez_compressed(output_filename, params=metadata, n_iter=n_iterations, mean=means, std=stds)
     filename_wd = f"wd_analysis_iter_{n_iterations}"
@@ -157,6 +162,78 @@ def main():
     print(f"  Successfully saved analysis results to {output_filename}")
     plt.tight_layout()
     plt.show()
+
+
+
+def multi_group_wd_comparison(resolution, n_iterations=100):
+
+    resolution = resolution + "_data" # or: "spatial_data"
+    search_pattern = "results/Wd_analysis/" + resolution + "/*/iter_" + f"{n_iterations}" + "_tau_*.npz"
+
+    files_to_read = glob.glob(search_pattern)
+
+    if not files_to_read:
+        print(f" Error: No files found.")
+        return None, None, None
+    
+    # Dictionary to hold your loaded data
+    all_data = {}
+    for f in files_to_read:
+        filename = os.path.basename(f)
+        tau_value = filename.split("tau_")[1].replace(".npz", "")
+        all_data[tau_value] = np.load(f, allow_pickle=True)
+        # all_data[tau_value] = np.load(f)
+        print(f"Successfully loaded data.")
+
+    first_key = list(all_data.keys())[0]
+    params_dict = all_data[first_key]['params'].item()
+    macrorates = params_dict['macrorates']
+
+    batch_size = np.arange(20,101,20)
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+
+    colors = ['#1F4E79', '#C55A11', '#548235'] # '#7030A0' # ['#0072B2','#D55E00', '#009E73', '#CC79A7']
+    
+    for i, entry in enumerate(all_data):
+        mean = all_data[entry]['mean']
+        std = all_data[entry]['std']
+
+        ax.plot(batch_size, mean, '-o', color=colors[i], linewidth=2, markersize=5, label=rf'$\tau = {entry}$')
+        ax.fill_between(batch_size, mean - std, mean + std, color=colors[i], alpha=0.05)
+        ax.plot(batch_size, mean - std, '--', color=colors[i], linewidth=0.8, alpha=0.6)
+        ax.plot(batch_size, mean + std, '--', color=colors[i], linewidth=0.8, alpha=0.6)
+
+    ax.set_xlabel('Batch Size (Number of Trajectories)', fontsize=12)
+    ax.set_ylabel(r'Wasserstein Distance $(W_d)$', fontsize=12)
+    ax.set_title(r'$W_d$ Convergence with Respect to Batch Size', fontsize=13, fontweight='bold')
+
+    ax.set_xlim(batch_size[0] - 5, batch_size[-1] + 5)
+    ax.set_ylim(bottom=1.0)   # don't let it go to 0, the band going negative is misleading
+
+    ax.grid(True, linestyle='--', alpha=0.4)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.legend(fontsize=11, framealpha=0.9)
+
+    filestr = "Wd_analysis/" + resolution
+    DATA_DIR = get_data_dir(filestr)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    
+    filename_wd = f"wd_comparison_iter_{n_iterations}_{macrorates}.png"
+    output_plot_path_wd = os.path.join(DATA_DIR, filename_wd)
+    fig.savefig(output_plot_path_wd)
+    plt.tight_layout()
+    plt.show()
+    
+
+def main():
+    resolution = "well_mixed"
+    n_iterations = 150
+    data_file = "full_model_1.5_1500.0_tf_500_tau5e-6" # "full_model_1.5_1500.0_tf_500_tau5e-7"
+    
+    # single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"
+    multi_group_wd_comparison(resolution, n_iterations=n_iterations)
 
 """
 TO DO:

@@ -240,9 +240,9 @@ def main():
     vol = L**3
     a = 10.0
     b = 20.0
-    num_runs = 3
+    num_runs = 10
     t_f = 500
-    tau = 5e-7
+    tau = 5e-6
     save_every_n_steps = int(10000) # otherwise the data is too dense, the savings would be very large
                                     # note that when comparing data with different tau against each other, 
                                     # slice the stored data to equalize the data points to be used.
