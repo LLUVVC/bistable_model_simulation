@@ -181,7 +181,7 @@ def main():
     
     ##### the Part to change freely for the corresponding simulation
     # Schloegl's model reaction rates
-    k = np.array(0.15, 0.025, 5.75, 25.)
+    k = np.array((0.15, 0.025, 5.75, 25.))
     print("Reaction rates for bistable schloegl's model: ",k)
     # full model reaction rates
     ls = np.array((1.5, 1500., 150., 25., 5.75, 25.))
@@ -189,9 +189,9 @@ def main():
     
     ###### ============================== 2. calculate microscopic rates =================================
 
-    num_run = 2
-    t_f = 15.
-    tau = 1e-5 # 1e-6
+    num_run = 1
+    t_f = 20.
+    tau = 1e-6 # 1e-6
 
     simulation_is_feasible = True if np.sqrt((2*np.max(diffusions))*2*tau) < np.min(sigmas) else False
     
