@@ -150,7 +150,7 @@ def single_group_wd_analysis(resolution, data_file, n_iterations = 100):
     # Clean up spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    filestr = "Wd_analysis/" + filestr
+    filestr = "wd_analysis/" + filestr
     DATA_DIR = get_data_dir(filestr)
     os.makedirs(DATA_DIR, exist_ok=True)
     output_filename = os.path.join(DATA_DIR, f"iter_{n_iterations}_tau_{metadata['timestep']}.npz")
@@ -168,7 +168,7 @@ def single_group_wd_analysis(resolution, data_file, n_iterations = 100):
 def multi_group_wd_comparison(resolution, n_iterations=100):
 
     resolution = resolution + "_data" # or: "spatial_data"
-    search_pattern = "results/Wd_analysis/" + resolution + "/*/iter_" + f"{n_iterations}" + "_tau_*.npz"
+    search_pattern = "results/wd_analysis/" + resolution + "/*/iter_" + f"{n_iterations}" + "_tau_*.npz"
 
     files_to_read = glob.glob(search_pattern)
 
@@ -216,7 +216,7 @@ def multi_group_wd_comparison(resolution, n_iterations=100):
     ax.spines['right'].set_visible(False)
     ax.legend(fontsize=11, framealpha=0.9)
 
-    filestr = "Wd_analysis/" + resolution
+    filestr = "wd_analysis/" + resolution
     DATA_DIR = get_data_dir(filestr)
     os.makedirs(DATA_DIR, exist_ok=True)
     
@@ -230,10 +230,10 @@ def multi_group_wd_comparison(resolution, n_iterations=100):
 def main():
     resolution = "well_mixed"
     n_iterations = 150
-    data_file = "full_model_1.5_1500.0_tf_500_tau5e-6" # "full_model_1.5_1500.0_tf_500_tau5e-7"
+    data_file = "full_model_1.5_1500.0_tf_500_tau1e-5" # "full_model_1.5_1500.0_tf_500_tau5e-7"
     
-    # single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"
-    multi_group_wd_comparison(resolution, n_iterations=n_iterations)
+    single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"
+    # multi_group_wd_comparison(resolution, n_iterations=n_iterations)
 
 """
 TO DO:
