@@ -6,7 +6,7 @@
 
 #SBATCH -n 1
 #SBATCH --mem=4G
-#SBATCH --time=72:00:00
+#SBATCH --time=48:00:00
 
 ## 25 parallel trajectories (indices 0-24)
 #SBATCH --array=0-24

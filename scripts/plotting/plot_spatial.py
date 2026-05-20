@@ -48,6 +48,12 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
     """
+    slice_val = 1000 # 10000
+    print(f"------ The output is sliced every {slice_val} steps ------")
+    print(f"------ for both trajs and distributions ------")
+    ##### if no slice the data size is too large, slow to process ####
+
+
     file_str = "spatial_data/" + file_str
     trajectories, combined_data, metadata = load_spatial_full_data(file_str=file_str)
 
@@ -70,7 +76,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     # =============== DISTRIBUTION + TRAJ PLOTS ==================
     # ============================================================
 
-    combined_data_X = combined_data['X']
+    combined_data_X = combined_data['X'][::slice_val]
     upper_bound = get_pretty_upper_bound(combined_data_X)
     print(f"The calculated upper bound for #X is {upper_bound}")
 
@@ -129,9 +135,9 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
 
     for i, traj in enumerate(trajectories):
         ax = axs[i]
-        x_time = traj['timescale'] * tau
-        y_x = traj['species_log']['X']
-        y_x2 = traj['species_log']['X2']
+        x_time = traj['timescale'][::slice_val] * tau
+        y_x = traj['species_log']['X'][::slice_val]
+        y_x2 = traj['species_log']['X2'][::slice_val]
         ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
         ax.plot(x_time, y_x2, color=color_x2, label='X2', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=2)
         # add a subtle shaded area under the curves
@@ -186,7 +192,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     # --- Get timestamp for filename ---
     # Format as YYYY-MM-DD_HH-MM-SS
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_str = f"{file_str}_{timestamp}"
+    file_str = f"{file_str}_{slice_val}_{timestamp}"
     filename_dist = f"distribution.png" # timestamp as a benchmark
     filename_traj = f"trajectories.png" # timestamp as a benchmark
     # --- Save plot to the 'results' folder ---
@@ -206,7 +212,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
 
 def main():
 
-    filestr =  "diff_equals_1500"
+    filestr =  "diff_equals_1500_1"
 
     plot_spatial(filestr)
 

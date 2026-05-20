@@ -93,7 +93,7 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
 
     # --- PREVENT OVERWRITING ---
     # 1. Find all existing data files
-    existing_files = glob.glob(os.path.join(DATA_DIR, "run_data_diff_*.npz")) # diff stands for diffusion
+    existing_files = glob.glob(os.path.join(DATA_DIR, "run_data_spatial_*.npz")) # diff stands for diffusion
     
     if not existing_files:
         # If no files, start at index 0
@@ -103,7 +103,7 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         max_index = -1
         for f in existing_files:
             # Use regex to find the number in 'run_data_0004.npz'
-            match = re.search(r'run_data_diff_(\d+).npz', os.path.basename(f))
+            match = re.search(r'run_data_spatial_(\d+).npz', os.path.basename(f))
             if match:
                 max_index = max(max_index, int(match.group(1)))
         
@@ -195,7 +195,7 @@ def main():
 
     simulation_is_feasible = True if np.sqrt((2*np.max(diffusions))*2*tau) < np.min(sigmas) else False
     
-    file_str = "diff_equals_1500_1"   # An example
+    file_str = "diff_equals_1500_2"   # An example
                                     # change it as needed
     DATA_DIR = get_data_dir(file_str)
 

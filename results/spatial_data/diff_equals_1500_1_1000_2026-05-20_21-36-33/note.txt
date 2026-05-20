@@ -1,0 +1,6 @@
+The distribution deviates from the analytical curve quite visibly.
+
+The reason might be that I submitted the jobs to slurm with limitation of 24:00:00 (24 hours), and there are 5 jobs
+that got killed bc of TIMEOUT.
+
+And those 5 trajs stayed in high states longer than the rest 20 trajs (bc the simulation time is much longer).
