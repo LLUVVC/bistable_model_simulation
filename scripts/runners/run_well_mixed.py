@@ -212,7 +212,6 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
         pid = os.getpid()
         output_filename = os.path.join(DATA_DIR, f"run_data_{i:04d}_pid{pid}.npz")
-        # np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_run_data[burn_in_index:])
         np.savez_compressed(output_filename, X=data_to_save_X, Time=time_run_data[burn_in_index:], 
                             # metadata
                             k=k, tau=tau, vol=vol, t_f=t_f, a=a, b=b)
@@ -240,9 +239,9 @@ def main():
     vol = L**3
     a = 10.0
     b = 20.0
-    num_runs = 10
-    t_f = 500
-    tau = 5e-6
+    num_runs = 25
+    t_f = 20
+    tau = 1e-6
     save_every_n_steps = int(10000) # otherwise the data is too dense, the savings would be very large
                                     # note that when comparing data with different tau against each other, 
                                     # slice the stored data to equalize the data points to be used.

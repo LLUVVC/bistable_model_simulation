@@ -229,7 +229,7 @@ def multi_group_wd_comparison(resolution, n_iterations=100):
 
 def main():
     resolution = "well_mixed"
-    n_iterations = 150
+    n_iterations = 50
     data_file = "full_model_1.5_1500.0_tf_500_tau1e-5" # "full_model_1.5_1500.0_tf_500_tau5e-7"
     
     single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"

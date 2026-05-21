@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import random 
 from scripts.analysis.data_loader import load_well_mixed_data
 from scripts.analysis.analyze_distributions import find_the_best_bw, hist_np, kde_sk, get_pretty_upper_bound
 from simulation.models.analytical_curve import get_analytical_curve
@@ -8,17 +9,21 @@ from scipy.stats import wasserstein_distance
 from datetime import datetime
 
 """
-1. Plot the distribution of species X throughout the simulation process, using data aggregated from all
+1. Plot the distribution of species X throughout the simulation process, using data aggregated from all trajectories 
 
-trajectories generated under the same parameter settings.
+generated under the same parameter settings.
 
-2. Compare the histograms and KDEs of the empirical distribution against the analytical distribution curve of the
+2. Compare the histograms and KDEs of the empirical distribution against the analytical distribution curve of the referenced 
 
-referenced Schlögl model.
+Schlögl model.
 
-3. Quantitatively measure the model fit by calculating the Wasserstein distance between the KDE and the analytical
+3. Quantitatively measure the model fit by calculating the Wasserstein distance between the KDE and the analytical curve.
 
-curve.
+4. For the well-mixed simulation, data is recorded in continuous simulation time over the interval [0, t_f], while the spatial 
+
+simulation are recorded at discrete time-step intervals [0, t_f/tau]. To facilitate a direct and intuitive comparison, the x-axes 
+
+of all trajectory plots are normalized to represent the actual simulation timespan.
 
 """
 
@@ -65,7 +70,11 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     # ============================================================
     # =============== DISTRIBUTION + TRAJ PLOTS ==================
     # ============================================================
-    num_traj = min(len(trajectories), num_traj)
+    ori_len_traj = len(trajectories)
+    num_traj = min(ori_len_traj, num_traj)
+    if num_traj < ori_len_traj:
+        trajectories = random.sample(trajectories, num_traj)
+
     ncols = 2
     nrows = int(np.ceil(num_traj / ncols))
 
@@ -77,10 +86,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     # Flatten axes to 1D array for easy iteration
     axs = np.array(axs).reshape(-1)
 
-    # step = 1 
-    # set step small in testing phases, bc large step would slice out all the data
-    # removed: because the data was sliced when saved to the file.
-    
+
     # Modern color palette (Blue and Orange/Coral)
     # color_x = "#20d1db" 
     # color_x2 = "#efb20b" 
@@ -95,7 +101,8 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         combined_data_X = combined_data['X']
         combined_data_X = combined_data_X[::slice_val]
         upper_bound = get_pretty_upper_bound(combined_data_X)
-        print(f"The calculated upper bound for #X is {upper_bound}")
+        print(f"--- The calculated upper bound for #X is {upper_bound} ---")
+        print(f"--- Total data points for distribution is {len(combined_data_X)} ---")
 
 
         if optimize_bw:
@@ -116,17 +123,18 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
 
         ax.bar(hist_bin, density_hist, width=bin_width, 
-               color='#a9cce3', edgecolor='white', alpha=0.6, label='Simulation') # '#d5d8dc'
+               color='#a9cce3', edgecolor='white', alpha=0.6, label='Simulation')
         ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=2.5, 
-                zorder=3, label='KDE') # '#2e4053'
+                zorder=3, label='KDE')
         ax.plot(p_states, stat_dist, color='#e74c3c', linestyle='--', 
-                linewidth=2, zorder=4, label='Analytical') # '#f39c12'
-        # not sure if i should add the vertical line now
+                linewidth=2, zorder=4, label='Analytical')
+        
+        # THE VERTICAL LINES: maybe unnecessary to add: 
         # ax.axvline(x=low_state, color='#2c3e50', linestyle=':', alpha=0.5, zorder=1)
         # ax.axvline(x=high_state, color='#2c3e50', linestyle=':', alpha=0.5, zorder=1) #'#566573'
 
 
-        ax.set_title(f'Combined trajectories: {len(trajectories)}')
+        ax.set_title(f'Combined trajectories: {ori_len_traj}')
         ax.set_xlabel('Particle Count')
         ax.set_ylabel('Probability')
         ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
@@ -137,14 +145,14 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         ax.spines['right'].set_visible(False)
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale'] * tau # [::step]
+            x_time = traj['timescale']
             y_x = traj['species_log']['X']
             
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             # add a subtle shaded area under the curves
             ax.fill_between(x_time, y_x, color=color_x, step='post', alpha=0.1)
         
-            ax.set_xlabel('Time ($t$)')
+            ax.set_xlabel('Timespan ($t$)')
             ax.set_ylabel('Particle Count')
             ax.set_title(f'Trajectory {i+1}')
             ax.legend(fontsize='small', loc='upper right') # Or 'upper left', etc.
@@ -161,6 +169,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         combined_data_X = combined_data_X[::slice_val]
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
+        print(f"--- Total data points for distribution is {len(combined_data_X)} ---")
 
         if optimize_bw:
         
@@ -187,7 +196,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         
         ####### skip the two vertical lines for the two analytical bistable states
 
-        ax.set_title(f'Combined trajectories: {len(trajectories)}')
+        ax.set_title(f'Combined trajectories: {ori_len_traj}')
         ax.set_xlabel('Particle Count')
         ax.set_ylabel('Probability')
         ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
@@ -198,7 +207,8 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         ax.spines['right'].set_visible(False)
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale'] * tau
+            x_time = traj['timescale']
+            
             y_x = traj['species_log']['X']
             y_x2 = traj['species_log']['X2']
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
@@ -240,7 +250,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     fig_dist.text(0.5, 0.85, textstr, transform=fig_dist.transFigure, fontsize=8,
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
     fig_dist.suptitle(
-        r"$\bf{Bistable\ System\ Distribution}$" + "\n" + 
+        r"$\bf{Bistable\ System\ Analysis}$" + "\n" + 
         f"Well-Mixed {model} Distribution",
         fontsize=16, 
         y=0.98
@@ -259,7 +269,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     
     fig_traj.suptitle(
         r"$\bf{Bistable\ System\ Distribution}$" + "\n" + 
-        f"Well-Mixed {model} Trajectories",
+        f"Well-Mixed {model} Trajectories (Examples)",
         fontsize=16, 
         y=title_y
     )
@@ -293,18 +303,11 @@ def main():
     By default, the optimize_bw is set to False,
 
     it can be manually change to True if needed.
-
-    TO DO:
-    #############################################
-    #### slice the data before calculate W_d ####
-    #############################################
-    ########## ADDED -> HAVE TO CHECK ###########
-    #############################################
     
     """
-    filestr =  "full_model_1.5_1500.0_tf_500_tau5e-6" # "schloegl_model_0.15_0.025"
+    filestr =  "full_model_1.5_1500.0_tf_20_tau1e-6" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=100, optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=30, optimize_bw=False) # optimize_bw as an input
 
 
 

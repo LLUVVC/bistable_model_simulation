@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import random 
 
 from scripts.analysis.data_loader import load_spatial_full_data
 from scripts.analysis.analyze_distributions import find_the_best_bw, hist_np, kde_sk, get_pretty_upper_bound
@@ -10,6 +11,18 @@ from datetime import datetime
 
 import os
 from pathlib import Path
+
+
+"""
+
+For the well-mixed simulation, data is recorded in continuous simulation time over the interval [0, t_f], while the spatial 
+
+simulation are recorded at discrete time-step intervals [0, t_f/tau]. To facilitate a direct and intuitive comparison, the x-axes 
+
+of all trajectory plots are normalized to represent the actual simulation timespan.
+
+"""
+
 
 def get_data_dir(file_str: str) -> Path:
     try:
@@ -43,7 +56,7 @@ def format_rate_list(rates):
 
 
 
-def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
+def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_bw=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -56,6 +69,11 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
 
     file_str = "spatial_data/" + file_str
     trajectories, combined_data, metadata = load_spatial_full_data(file_str=file_str)
+
+    ori_len_traj = len(trajectories)
+    num_traj = min(ori_len_traj, num_traj)
+    if num_traj < ori_len_traj:
+        trajectories = random.sample(trajectories, num_traj)
 
     # --- read the data about parameter settings ---
     macrorates = metadata['macrorates']
@@ -107,7 +125,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
             linewidth=2, zorder=4, label='Analytical') # '#f39c12'
     
 
-    ax.set_title(f'Combined trajectories: {len(trajectories)}')
+    ax.set_title(f'Combined trajectories: {ori_len_traj}')
     ax.set_xlabel('Particle Count')
     ax.set_ylabel('Probability')
     ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
@@ -145,7 +163,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
         ax.fill_between(x_time, y_x2, color=color_x2, step='post', alpha=0.1)
         ax.legend(fontsize='small', loc='upper right') # Or 'upper left', etc.
         ax.grid(True, linestyle='--', alpha=0.4, which='both')
-        ax.set_xlabel('Time ($t$)')
+        ax.set_xlabel('Timespan ($t$)')
         ax.set_ylabel('Particle Count')
         ax.set_title(f'Trajectory {i+1}')
         # clean up the frame
@@ -175,7 +193,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
             ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
 
     fig_traj.tight_layout(rect=[0, 0, 1, rect_top])
-    fig_traj.suptitle("Bistable System Dynamics\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Trajectories}}$", 
+    fig_traj.suptitle("Bistable System Dynamics\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Trajectories\ (Examples)}}$", 
             fontsize=16, y=title_y, fontweight='bold') 
     
     # --- Push the plots down ---
@@ -186,7 +204,7 @@ def plot_spatial(file_str, bin_width=2., band_width=2.5714, optimize_bw=False):
     # fig_dist.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3)
     
     fig_dist.tight_layout(rect=[0, 0, 1, 0.75])
-    fig_dist.suptitle("Bistable System Distribution\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Distribution}}$",
+    fig_dist.suptitle("Bistable System Analysis\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Distribution}}$",
                     fontsize=16, y=0.98, fontweight='bold')
 
     # --- Get timestamp for filename ---
@@ -214,7 +232,7 @@ def main():
 
     filestr =  "diff_equals_1500_1"
 
-    plot_spatial(filestr)
+    plot_spatial(filestr, num_traj=30)
 
 
 
