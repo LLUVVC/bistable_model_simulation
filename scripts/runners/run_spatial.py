@@ -103,7 +103,7 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         max_index = -1
         for f in existing_files:
             # Use regex to find the number in 'run_data_0004.npz'
-            match = re.search(r'run_data_spatial_(\d+).npz', os.path.basename(f))
+            match = re.search(r'run_data_spatial_(\d+)', os.path.basename(f))
             if match:
                 max_index = max(max_index, int(match.group(1)))
         
