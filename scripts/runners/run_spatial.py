@@ -195,7 +195,7 @@ def main():
 
     simulation_is_feasible = True if np.sqrt((2*np.max(diffusions))*2*tau) < np.min(sigmas) else False
     
-    file_str = "diff_equals_1500_2"   # An example
+    file_str = "diff_equals_1500_3" # An example
                                     # change it as needed
     DATA_DIR = get_data_dir(file_str)
 

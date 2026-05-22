@@ -1,0 +1,11 @@
+36 simulations were executed and completed, but were not saved correctly to the output file;
+
+It was very likely caused by token time (or another term) expiration. 
+
+Solution: Now I've moved the output folder to /scratch/htc/...
+
+Because the trajs obtained were unintentionally "filtered" by the htc system (none simulations with longer run time, in other words, 
+
+longer time in high states, were saved), so the distribution is severely distorted.
+
+So the diff_equals_1500_2 actual traj data has been removed from local computers, and is stored on htc only.

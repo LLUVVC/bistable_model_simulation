@@ -61,7 +61,7 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
     """
-    slice_val = 1000 # 10000
+    slice_val = 10000 # 1000
     print(f"------ The output is sliced every {slice_val} steps ------")
     print(f"------ for both trajs and distributions ------")
     ##### if no slice the data size is too large, slow to process ####
@@ -230,9 +230,9 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
 
 def main():
 
-    filestr =  "diff_equals_1500_1"
+    filestr =  "diff_equals_1500_2"
 
-    plot_spatial(filestr, num_traj=30)
+    plot_spatial(filestr, num_traj=100)
 
 
 
