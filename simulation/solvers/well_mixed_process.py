@@ -41,16 +41,16 @@ def full_fast_tau_leaping_loop(
     np.random.seed(seed_value)
 
     # --- 1. Pre-allocate arrays for SAVED data ONLY ---
-    num_saves = t_f_steps // save_every_n_steps
-    saved_particles = np.zeros((num_saves + 1, num_species))
-    saved_times = np.zeros(num_saves + 1)
+    num_saves = int(t_f_steps // save_every_n_steps)
+    saved_particles = np.zeros((num_saves, num_species))
+    saved_times = np.zeros(num_saves)
     
     # --- 2. Set initial state ---
     current_state = initial_state.copy()
     current_time = 0.0
     saved_particles[0] = current_state
     saved_times[0] = current_time
-    save_index = 1
+    save_index = 0
     
     # --- 3. Main simulation loop (this will be C-code fast) ---
     props = np.zeros(num_reactions)
@@ -69,7 +69,7 @@ def full_fast_tau_leaping_loop(
     c3m = l3m
     # print(reaction_coef)
 
-    for i in range(t_f_steps):
+    for i in range(1, t_f_steps+1):
         
         # --- 4. Fast Propensity Calculation (Hard-coded for your model) ---
         # This replaces your slow _generate_intensity_func
@@ -120,7 +120,7 @@ def full_fast_tau_leaping_loop(
         current_time += h
         
         # --- 7. Save data ONLY periodically ---
-        if (i + 1) % save_every_n_steps == 0:
+        if i % save_every_n_steps == 0:
             # update the bar by batch size
             progress_hook.update(save_every_n_steps)
             if save_index < num_saves + 1:
@@ -279,9 +279,9 @@ def schloegl_fast_tau_leaping_loop(
     np.random.seed(seed_value)
 
     # --- 1. Pre-allocate arrays for SAVED data ONLY ---
-    num_saves = t_f_steps // save_every_n_steps
-    saved_particles = np.zeros((num_saves + 1, num_species))
-    saved_times = np.zeros(num_saves + 1)
+    num_saves = int(t_f_steps // save_every_n_steps)
+    saved_particles = np.zeros((num_saves, num_species))
+    saved_times = np.zeros(num_saves)
     
     # --- 2. Set initial state ---
     current_state = initial_state.copy()
@@ -306,7 +306,7 @@ def schloegl_fast_tau_leaping_loop(
 
     # print(reaction_coef)
 
-    for i in range(t_f_steps):
+    for i in range(1, t_f_steps+1):
         
         # --- 4. Fast Propensity Calculation (Hard-coded for your model) ---
         # This replaces your slow _generate_intensity_func
@@ -363,7 +363,7 @@ def schloegl_fast_tau_leaping_loop(
         current_time += h
         
         # --- 7. Save data ONLY periodically ---
-        if (i + 1) % save_every_n_steps == 0:
+        if i % save_every_n_steps == 0:
             # update the bar by batch size
             progress_hook.update(save_every_n_steps)
             if save_index < num_saves + 1:
