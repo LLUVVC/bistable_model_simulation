@@ -230,7 +230,7 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
 
 def main():
 
-    filestr =  "diff_equals_1500_2"
+    filestr =  "diff_equals_1500_1"
 
     plot_spatial(filestr, num_traj=100)
 

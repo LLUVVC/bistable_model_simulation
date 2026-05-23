@@ -307,7 +307,7 @@ def main():
     """
     filestr =  "full_model_1.5_1500.0_tf_20_tau1e-6" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=30, optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=100, optimize_bw=False) # optimize_bw as an input
 
 
 
