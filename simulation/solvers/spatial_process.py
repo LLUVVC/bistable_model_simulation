@@ -231,13 +231,15 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas,
     # could add the animations later but not necessary
 
     xandx2_log = np.empty((t_f_steps,2))
-    
+    progress_update_val = 10000
+
     with ProgressBar(total=t_f_steps) as progress:
         for i in range(t_f_steps):
             pos_x, pos_x2, pos_a, pos_b = run_single_step_compiled(pos_x, pos_x2, 
                     pos_a, pos_b, sigmas, kappas, diffusions, h, box_shape, num_a_target, num_b_target)
             xandx2_log[i, 0] = len(pos_x)
             xandx2_log[i, 1] = len(pos_x2)
-            progress.update(1)
+            if i % progress_update_val == 0:
+                progress.update(progress_update_val) # 1, caused enormous log files on clusters!
 
     return xandx2_log
