@@ -214,3 +214,8 @@ schloegl_env/
 
 # Local environment variables (sensitive info)
 .env
+
+# Ignore simulation output data
+results/
+simulation_data/
+logs/

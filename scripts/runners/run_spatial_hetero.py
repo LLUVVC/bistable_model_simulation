@@ -246,7 +246,7 @@ def main():
 
     diff_state = "homo"
     ###### ---------- decide if the diffusion is homogeneous in space -----------
-    hetero_diff = False # True or False
+    hetero_diff = True # True or False
     if hetero_diff:
         box_shape = np.array((L * 5, L, L)) # five boxes in a row along x-axis for 5 subspaces
         diff_max = p + q
@@ -256,7 +256,7 @@ def main():
     ###### ============================ and actually start the simulations ===============================
 
     num_run = 1
-    t_f = 1.2 # 20.
+    t_f = 12. # not sure about how long a big system might need so set to 12. 
     tau = 1e-6 # 1e-6
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------

@@ -256,7 +256,7 @@ def main():
     ###### ============================ and actually start the simulations ===============================
 
     num_run = 1
-    t_f = 1.2 # 20.
+    t_f = 24. # 1.2 test time
     tau = 1e-6 # 1e-6
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------

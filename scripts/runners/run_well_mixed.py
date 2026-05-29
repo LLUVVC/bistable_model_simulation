@@ -110,6 +110,9 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
             print(f"Warning: Simulation time ({t_f}s) is shorter than burn-in time ({t_burn_in}s). Saving no data.")
             data_to_save_X = np.array([])
             data_to_save_X2 = np.array([])
+            
+            return None
+        
         else:
             burn_in_index = burn_in_indices[0] # Get the first index *after* burn-in
             data_to_save_X = particle_run_data[burn_in_index:, 0]  # Save X data

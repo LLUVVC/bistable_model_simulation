@@ -294,7 +294,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     fig_traj.savefig(output_plot_path_traj)
     print(f"Saved trajectories and distribution plots to {DATA_DIR}")
 
-    plt.show()
+    # plt.show()
 
 
 
@@ -307,7 +307,7 @@ def main():
     """
     filestr =  "full_model_1.5_1500.0_tf_20_tau1e-6" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=100, optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=10, band_width=5., optimize_bw=False) # optimize_bw as an input
 
 
 

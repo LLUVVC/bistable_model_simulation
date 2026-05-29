@@ -68,7 +68,7 @@ def get_dist_sq(p1, p2):
 
 
 @njit
-def diffusion_periodic_step_numba(pos, diffusion, h, box_shape):
+def homo_diffusion_periodic_step_numba(pos, diffusion, h, box_shape):
     """
     Apply Diffusion + Periodic Boundaries in a single, fast pass.
     """
@@ -78,15 +78,12 @@ def diffusion_periodic_step_numba(pos, diffusion, h, box_shape):
     # scale = sqrt(2 * D * dt)
     scale = np.sqrt(2.0 * diffusion * h)
     
-    # Generate random kicks for (N, 3)
-    # explicitly passing size=(n, 3) is safer/clearer than pos.shape in Numba
-    kicks = np.random.normal(0.0, 1.0, size=(n, 3)) * scale
-    
     # 2. Update Position & Check Boundaries (One Loop)
     for i in range(n):
         for dim in range(3):
+            kick = np.random.normal(0.0, 1.0) * scale
             # Apply Kick
-            new_val = pos[i, dim] + kicks[i, dim]
+            new_val = pos[i, dim] + kick
             
             # Apply Periodic Boundary Condition (Wrap)
             if new_val < 0:
@@ -98,6 +95,39 @@ def diffusion_periodic_step_numba(pos, diffusion, h, box_shape):
 
     return pos
 
+
+@njit
+def hetero_diffusion_periodic_step_numba(pos, hetero_diffusion_func, h, box_shape):
+    """
+    Apply Heterogeneous Diffusion + Periodic Boundaries in a single, fast pass.
+    """
+    n = len(pos)
+    
+    for i in range(n):
+        x_val = pos[i, 0]
+        # unpack both D and dD/dx
+        diffusion, dD_dx = hetero_diffusion_func(x_val)
+        # scale = sqrt(2 * D * dt) 
+        scale = np.sqrt(2.0 * diffusion * h)
+
+        for dim in range(3):
+            kick = np.random.normal(0.0, 1.0) * scale
+
+            # Apply spurious drift ONLY to the X-axis
+            if dim == 0:
+                new_val = pos[i, dim] + kick + dD_dx * h
+            else:
+                new_val = pos[i, dim] + kick
+
+            # Apply Periodic Boundary Condition (Wrap)
+            if new_val < 0:
+                new_val = new_val + box_shape[dim]
+            elif new_val > box_shape[dim]:
+                new_val = new_val - box_shape[dim]
+                
+            pos[i, dim] = new_val
+
+    return pos
 
 
 ##### The following method is discarded here

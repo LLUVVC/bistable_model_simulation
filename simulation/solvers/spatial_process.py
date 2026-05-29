@@ -1,8 +1,9 @@
 import numpy as np
 import tqdm as tqdm
 from numba import njit
+from numba.typed import List
 from numba_progress import ProgressBar
-from simulation.utils.geometry_fast import generate_position_box_numba, generate_sphere_offsets_numba, diffusion_periodic_step_numba
+from simulation.utils.geometry_fast import generate_position_box_numba, generate_sphere_offsets_numba, homo_diffusion_periodic_step_numba, hetero_diffusion_periodic_step_numba
 from simulation.utils.reactions_fast import (maintain_bath_numba, unimolecularSelectReactant_numba, bimolecular_hetero_candidates_update,
                                              bimolecular_homo_candidates_update, AddParticleHomoMid_numba_update, SubstituteParticle_numba)
 
@@ -182,7 +183,7 @@ def run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
 #      THE COMPILED STEP WRAPPER
 # ==========================================
 @njit
-def run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
+def homo_d_run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
                             diffusions, h, box_shape, num_a_target, num_b_target):
     # ========================================
     #                Reaction 
@@ -193,14 +194,37 @@ def run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas,
     # ========================================
     #         Diffusion + Periodic
     # ========================================
-
-    pos_x = diffusion_periodic_step_numba(pos_x, diffusions[0], h, box_shape)
-    pos_x2 = diffusion_periodic_step_numba(pos_x2, diffusions[1], h, box_shape)
-    pos_a = diffusion_periodic_step_numba(pos_a, diffusions[2], h, box_shape)
-    pos_b = diffusion_periodic_step_numba(pos_b, diffusions[3], h, box_shape)
+    pos_x = homo_diffusion_periodic_step_numba(pos_x, diffusions[0], h, box_shape)
+    pos_x2 = homo_diffusion_periodic_step_numba(pos_x2, diffusions[1], h, box_shape)
+    pos_a = homo_diffusion_periodic_step_numba(pos_a, diffusions[2], h, box_shape)
+    pos_b = homo_diffusion_periodic_step_numba(pos_b, diffusions[3], h, box_shape)
 
     return pos_x, pos_x2, pos_a, pos_b
 
+
+@njit
+def hetero_d_run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
+                            hetero_diffusion_func, h, box_shape, num_a_target, num_b_target):
+    # ========================================
+    #                Reaction 
+    # ========================================
+    pos_x, pos_x2, pos_a, pos_b = run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
+                                                     sigmas, kappas, h, box_shape, 
+                                                     num_a_target, num_b_target)
+    
+    # ========================================
+    #         Diffusion + Periodic
+    # ========================================
+    """
+    The Diffusion is no longer a constant in the simulation box, but now D = D(x),
+    Note: D(x) has to be @njit
+    """
+    pos_x = hetero_diffusion_periodic_step_numba(pos_x, hetero_diffusion_func, h, box_shape)
+    pos_x2 = hetero_diffusion_periodic_step_numba(pos_x2, hetero_diffusion_func, h, box_shape)
+    pos_a = hetero_diffusion_periodic_step_numba(pos_a, hetero_diffusion_func, h, box_shape)
+    pos_b = hetero_diffusion_periodic_step_numba(pos_b, hetero_diffusion_func, h, box_shape)
+
+    return pos_x, pos_x2, pos_a, pos_b
 
 # ==========================================
 #        INITIALIZATION HELPER
@@ -223,23 +247,80 @@ def simul_initialize(initial_num:np.array, box_shape):
 '''
 PROGRESSBAR
 '''
-def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
-            diffusions, h, box_shape, num_a_target, num_b_target):
+
+
+# Thin Python wrapper — just owns the ProgressBar
+def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, 
+              sigmas, kappas, diffusions, h, box_shape, 
+              num_a_target, num_b_target):
     
-    # x_log, x2_log = [], [] 
-    # leave the positions aside for now
-    # could add the animations later but not necessary
+    xandx2_log = np.empty((t_f_steps, 2))
+    x_pos_log = List() # use numba List so it can be compiled in the loop below    
+    # let numba know the type of the list entries
+    x_pos_log.append(pos_x.copy()) 
+    x_pos_log.pop()
 
-    xandx2_log = np.empty((t_f_steps,2))
-    progress_update_val = 10000
+    if callable(diffusions): # diffusion is a function of X-axis
+        
+        with ProgressBar(total=t_f_steps) as progress:
+            _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                                sigmas, kappas, diffusions, h, box_shape,
+                                num_a_target, num_b_target,
+                                xandx2_log, x_pos_log, progress)
+        return xandx2_log, list(x_pos_log)
+    
+    else: # diffusion is constant in space
+        with ProgressBar(total=t_f_steps) as progress:
+            _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                                sigmas, kappas, diffusions, h, box_shape,
+                                num_a_target, num_b_target,
+                                xandx2_log, x_pos_log, progress)
+        return xandx2_log, list(x_pos_log)
 
-    with ProgressBar(total=t_f_steps) as progress:
-        for i in range(t_f_steps):
-            pos_x, pos_x2, pos_a, pos_b = run_single_step_compiled(pos_x, pos_x2, 
-                    pos_a, pos_b, sigmas, kappas, diffusions, h, box_shape, num_a_target, num_b_target)
-            xandx2_log[i, 0] = len(pos_x)
-            xandx2_log[i, 1] = len(pos_x2)
-            if i % progress_update_val == 0:
-                progress.update(progress_update_val) # 1, caused enormous log files on clusters!
 
-    return xandx2_log
+# Inner compiled function
+@njit
+def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                         sigmas, kappas, diffusions, h, box_shape,
+                         num_a_target, num_b_target,
+                         xandx2_log, x_pos_log, progress):
+    
+    for i in range(t_f_steps):              # Numba compiled loop
+        pos_x, pos_x2, pos_a, pos_b = homo_d_run_single_step_compiled(
+            pos_x, pos_x2, pos_a, pos_b,
+            sigmas, kappas, diffusions, h, box_shape,
+            num_a_target, num_b_target)
+        
+        xandx2_log[i, 0] = len(pos_x)
+        xandx2_log[i, 1] = len(pos_x2)
+        
+
+        
+        if i % 10000 == 0:
+            ### Not sure if there would be enough data to draw the distribution of X in space
+            ### if I only save it every 10000 steps.
+            ### However the output data files would be crazily large if it's recorded at every time step
+            x_pos_log.append(pos_x.copy())
+            progress.update(10000)
+
+
+@njit
+def _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                         sigmas, kappas, diff_func, h, box_shape,
+                         num_a_target, num_b_target,
+                         xandx2_log, x_pos_log, progress):
+    
+    for i in range(t_f_steps):              # Numba compiled loop
+        pos_x, pos_x2, pos_a, pos_b = hetero_d_run_single_step_compiled(
+            pos_x, pos_x2, pos_a, pos_b,
+            sigmas, kappas, diff_func, h, box_shape,
+            num_a_target, num_b_target)
+        
+        xandx2_log[i, 0] = len(pos_x)
+        xandx2_log[i, 1] = len(pos_x2)
+        
+        
+        
+        if i % 10000 == 0:
+            x_pos_log.append(pos_x.copy())
+            progress.update(10000)

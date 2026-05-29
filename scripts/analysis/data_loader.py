@@ -116,17 +116,19 @@ def load_spatial_full_data(file_str):
 
     if not data_files:
         print(f" Error: No files found in {DATA_DIR}")
-        return None, None, None
+        return None, None, None, None, None
     
     # all_data_X, all_data_X2, trajectories = [], [], []
     all_data_X = []
     all_data_X2 = []
     trajectories = []
     metadata = {}
-
+    collective_pos_X = []
+    pos_Time = []
+    
     for f in data_files:
         try:
-            with np.load(f) as data:
+            with np.load(f, allow_pickle=True) as data:
                 
                 t_data = data['Time']
 
@@ -138,6 +140,11 @@ def load_spatial_full_data(file_str):
                 run_species_log['X2'] = data['X2']
                 trajectories.append({'timescale': t_data, 'species_log': run_species_log})
 
+                collective_pos_X.append(data['pos_X'])
+
+                if len(pos_Time)==0:
+                    pos_Time = data['pos_Time']
+
                 if not metadata:
                     metadata['macrorates'] = data['l'] # idk why writting them in the same line with a comma dont work
                     metadata['microrates'] = data['kappa']
@@ -148,6 +155,8 @@ def load_spatial_full_data(file_str):
                     metadata['box_shape'] = data['box_shape']
                     metadata['sigma'] = data['sigma']
                     metadata['D'] = data['D']
+                    metadata['p'] = data['p']
+                    metadata['q'] = data['q']
 
         except Exception as e:
             print(f" Error loading {os.path.basename(f)}: {e}") # return the file name only, rather than the full path 
@@ -158,6 +167,6 @@ def load_spatial_full_data(file_str):
     combined_data['X2'] = np.concatenate(all_data_X2)
 
     print(f" Loaded {len(data_files)} runs. Combined {len(combined_data['X'])} points.")
-    return trajectories, combined_data, metadata
+    return trajectories, combined_data, collective_pos_X, pos_Time, metadata
 
 

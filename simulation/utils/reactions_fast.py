@@ -99,25 +99,18 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
     react_idx_1 = []
     react_idx_2 = []
 
-    candidates = np.empty((n1*n2, 2), dtype=np.int64)
-    num_pair = 0
-    for i in range(n1):
-        for j in range(n2):
-            diff = pos_r1[i] - pos_r2[j]
-            diff = diff - np.round(diff/box_shape) * box_shape
-            # Calculate Squared Distances (N1, N2)
-            dist_sq = np.sum(diff**2)
-            if dist_sq <= sigma_sq:
-                candidates[num_pair] = [i, j]
-                num_pair = num_pair + 1
+    diff = pos_r1[:, np.newaxis, :] - pos_r2[np.newaxis, :, :]
+    diff = diff - np.round(diff/box_shape) * box_shape
 
-    # --- OPTIONAL: SHUFFLE (Removes Bias) ---
-    # Shuffling ensures particle 0 doesn't always react with neighbor 1 before neighbor 2.
-    pair_indices = np.arange(num_pair)
-    np.random.shuffle(pair_indices)
+    # Calculate Squared Distances (N1, N2)
+    dist_sq = np.sum(diff**2, axis=2)
+
+    candidates = np.argwhere(dist_sq <= sigma_sq)
+    np.random.shuffle(candidates)
+
 
     # Iterate through the LIST of close pairs
-    for k in pair_indices:#
+    for k in range(len(candidates)):#
         i = candidates[k, 0]
         j = candidates[k, 1]
         
@@ -229,3 +222,61 @@ def AddParticleHomoMid_numba_update(pos_r, pos_p, idx_1, idx_2, box_shape):
     pos_r = pos_r[mask]
 
     return pos_r, pos_p
+
+
+
+##### The following method is discarded here
+##### Because the double for-loops likely makes the simulation slow, and its function can
+##### be realized with vectorized variables
+"""
+@njit
+def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_shape):
+    
+    sigma_sq = sigma * sigma
+    prob = 1.0 - np.exp(-kappa * h)
+
+    # --- PHASE REACT (Linear Loop) ---
+    n1 = len(pos_r1)
+    n2 = len(pos_r2)
+    mask_1 = np.zeros(n1, dtype=np.bool_) # False if not reacted, True once reacted
+    mask_2 = np.zeros(n2, dtype=np.bool_)
+    
+    react_idx_1 = []
+    react_idx_2 = []
+
+    candidates = np.empty((n1*n2, 2), dtype=np.int64)
+    num_pair = 0
+    for i in range(n1):
+        for j in range(n2):
+            diff = pos_r1[i] - pos_r2[j]
+            diff = diff - np.round(diff/box_shape) * box_shape
+            # Calculate Squared Distances (N1, N2)
+            dist_sq = np.sum(diff**2)
+            if dist_sq <= sigma_sq:
+                candidates[num_pair] = [i, j]
+                num_pair = num_pair + 1
+
+    # --- OPTIONAL: SHUFFLE (Removes Bias) ---
+    # Shuffling ensures particle 0 doesn't always react with neighbor 1 before neighbor 2.
+    pair_indices = np.arange(num_pair)
+    np.random.shuffle(pair_indices)
+
+    # Iterate through the LIST of close pairs
+    for k in pair_indices:#
+        i = candidates[k, 0]
+        j = candidates[k, 1]
+        
+        # Check if they are still available
+        if mask_1[i] or mask_2[j]: 
+            continue
+            
+        # Roll the dice
+        if np.random.random() < prob:
+            mask_1[i] = True
+            mask_2[j] = True
+            react_idx_1.append(i)
+            react_idx_2.append(j)
+            
+    return np.array(react_idx_1), np.array(react_idx_2)
+
+"""
