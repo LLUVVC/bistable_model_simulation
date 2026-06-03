@@ -242,8 +242,8 @@ def main():
     vol = L**3
     a = 10.0
     b = 20.0
-    num_runs = 5
-    t_f = 20
+    num_runs = 1
+    t_f = 24.
     tau = 1e-6
     save_every_n_steps = int(10000) # otherwise the data is too dense, the savings would be very large
                                     # note that when comparing data with different tau against each other, 

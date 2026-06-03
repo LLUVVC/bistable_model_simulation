@@ -305,9 +305,9 @@ def main():
     it can be manually change to True if needed.
     
     """
-    filestr =  "full_model_1.5_1500.0_tf_20_tau1e-6" # "schloegl_model_0.15_0.025"
+    filestr =  "full_model_1.5_1500.0_tf_24.0_tau1e-6" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=10, band_width=5., optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=10, optimize_bw=False) # optimize_bw as an input
 
 
 

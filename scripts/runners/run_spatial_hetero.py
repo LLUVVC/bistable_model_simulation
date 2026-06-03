@@ -241,8 +241,8 @@ def main():
     ###### ---------- diffusion function -----------
     ###### obey the form: D(x) = - p * cos(0.2*pi*x) + q
     ###### continuous even at boundary -> smooth D' -> have to consider the spurious drift
-    p = 790.
-    q = 810.
+    p = 0 # 790.
+    q = 750. # 810.
 
     diff_state = "homo"
     ###### ---------- decide if the diffusion is homogeneous in space -----------
@@ -256,7 +256,7 @@ def main():
     ###### ============================ and actually start the simulations ===============================
 
     num_run = 1
-    t_f = 12. # not sure about how long a big system might need so set to 12. 
+    t_f = 4. # not sure about how long a big system might need so set to 12. 
     tau = 1e-6 # 1e-6
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------

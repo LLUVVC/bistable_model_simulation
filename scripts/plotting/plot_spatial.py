@@ -57,7 +57,7 @@ def format_rate_list(rates):
 
 
 
-def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_bw=False):
+def plot_spatial(file_str, num_traj, slice_val, plot_spatial_dist=False, bin_width=2., band_width=2.5714, optimize_bw=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -68,7 +68,6 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
                 
     """
 
-    slice_val = 1 # 10000
     print(f"------ The output is sliced every {slice_val} steps ------")
     print(f"------ for both trajs and distributions ------")
 
@@ -77,8 +76,8 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
 
     file_str = "spatial_data/" + file_str
 
-    trajectories, combined_data, collective_pos_X, pos_Time, metadata = load_spatial_full_data(file_str=file_str)
-
+    trajectories, combined_data, collective_pos_X, pos_Time, metadata = load_spatial_full_data(file_str=file_str, slice_val=slice_val)
+    
     ori_len_traj = len(trajectories)
     num_traj = min(ori_len_traj, num_traj)
     if num_traj < ori_len_traj:
@@ -98,8 +97,8 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
     p = metadata['p']
     q = metadata['q']
 
-    plot_spatial_dist = False if p==0 else True # if p=0 it is homogeneous diffusion simulation 
-
+    # plot_spatial_dist = False if p==0 else True # if p=0 it is homogeneous diffusion simulation 
+    
     macrorates_k = calculate_k_from_l(macrorates)
     # --- the result folder to save plots ---
     DATA_DIR = get_data_dir(file_str)
@@ -112,7 +111,7 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
     # ============================================================
     if not plot_spatial_dist:
 
-        combined_data_X = combined_data['X'][::slice_val]
+        combined_data_X = combined_data['X']
         upper_bound = get_pretty_upper_bound(combined_data_X)
         print(f"The calculated upper bound for #X is {upper_bound}")
 
@@ -169,9 +168,9 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
 
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale'][::slice_val] * tau
-            y_x = traj['species_log']['X'][::slice_val]
-            y_x2 = traj['species_log']['X2'][::slice_val]
+            x_time = traj['timescale'] * tau
+            y_x = traj['species_log']['X']
+            y_x2 = traj['species_log']['X2']
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             ax.plot(x_time, y_x2, color=color_x2, label='X2', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=2)
             # add a subtle shaded area under the curves
@@ -241,11 +240,11 @@ def plot_spatial(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_b
 
         # plt.show()
 
-    if plot_spatial_dist:
-        print(f" ----- The Diffusion function is: D(x) = -{p}cos(pi*x) + {q}. -----")
+    if plot_spatial_dist: # if not plot_spatial_dist: -> change to this when I try to see if the system is well-mixed with smaller D.
+        print(f" ----- The Diffusion function is: D(x) = -{p}*cos(pi*x) + {q}. -----")
         print(f" ----- Test: the input box shape is {box_shape}. -----")
         count_divisions = hetero_diffusion_dist(collective_pos_X, pos_Time, box_shape)
-        plot_3d_spatial_distributions(DATA_DIR, count_divisions, a, b, macrorates_k, p, q, box_shape, slice_val, bin_width=15.) 
+        plot_3d_spatial_distributions(DATA_DIR, count_divisions, a, b, macrorates_k, p, q, box_shape, bin_width=2.) 
 
 
 
@@ -288,12 +287,15 @@ def hetero_diffusion_dist(collective_pos_X, pos_Time, box_shape, num_division=5)
     return count_divisions
 
 def plot_3d_spatial_distributions(filestr, count_divisions, a, b, k, p, q,
-                                  box_shape, slice_val, bin_width=10.):
+                                  box_shape, bin_width=2.): # slice_val=1
     
     """
     plot the COUNT(X) distributions in each subspace,
 
     and compare them to the analytical curve.
+
+    slice_val=1 -> there is no need to slice data with exact positions, bc it 
+                   is alreay sliced when being saved.
     """
 
     # fig, ax = plt.subplots(figsize=(10,8), subplot_kw={'projection': '3d'})
@@ -316,8 +318,8 @@ def plot_3d_spatial_distributions(filestr, count_divisions, a, b, k, p, q,
     # Modern colors for the 5 divisions
     colors = ['#4A90E2', '#F5A623', '#7ED321', '#D0021B', '#9013FE']
     linewidth_list = [5.0, 4.0, 3.0, 2.0, 1.5]
-
-    upper_bound = get_pretty_upper_bound(count_divisions[:, 2]) # data from the highest diffusion division
+    
+    upper_bound = get_pretty_upper_bound(count_divisions.reshape(-1,1)) # data from the highest diffusion division
     print(f"The calculated upper bound for #X is {upper_bound}")
     vol = np.prod(box_shape)/num_divisions 
     p_states, stat_dist = get_analytical_curve(upper_bound, k, a, b, vol)
@@ -331,7 +333,7 @@ def plot_3d_spatial_distributions(filestr, count_divisions, a, b, k, p, q,
         hist_bin, density_hist = hist_np(raw_data, upper_bound, bin_width)
         # print(f"Test: for the round {i}, the sum of density hist is {np.sum(density_hist*bin_width)}")
 
-        label_str = f"D: {diff_ranges[i][0]:.0f} ~ {diff_ranges[i][1]:.0f} | Avg X: {avg_count:.1f}" if (p and q) else ""
+        label_str = f"D: {diff_ranges[i][0]:.0f} ~ {diff_ranges[i][1]:.0f} | Avg X: {avg_count:.1f}" if p else ""
         ax.bar(hist_bin, density_hist, zs=num_divisions-i-dist_plot_pad, zdir='x', width=bin_width, color=colors[i], 
                edgecolor='white', linewidth=0.3, alpha=0.85, label=label_str)
 
@@ -371,19 +373,22 @@ def plot_3d_spatial_distributions(filestr, count_divisions, a, b, k, p, q,
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # --- Create the directory if it doesn't exist ---
     os.makedirs(filestr, exist_ok=True)
-    filename = f"spatial_dist_{slice_val}_{timestamp}.png"
+    filename = f"spatial_dist_{timestamp}.png"
     output_plot_path = os.path.join(filestr, filename)
     fig.savefig(output_plot_path)
     print(f"Saved trajectoris and distribution plots to {filestr}")
 
-    plt.show()
+    # plt.show()
 
 
 def main():
 
-    filestr =  "homo_tf_1.2_D_1500.0" # "homo_tf_0.2_D_1500.0"
+    filestr = "hetero_tf_4.0_D_750.0" # "homo_tf_24.0_D_1500.0" # "hetero_tf_12.0_D_1600.0"
 
-    plot_spatial(filestr, num_traj=100)
+    slice_val = 10000 # 1 10 100 1000 10000 
+                     # The slice_val only affect the analysis of 
+                     # simulations with homogeneous Diffusion coefficients
+    plot_spatial(filestr, num_traj=10, slice_val=slice_val, plot_spatial_dist=True)
 
 
 

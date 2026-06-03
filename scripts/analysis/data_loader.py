@@ -105,7 +105,7 @@ def load_well_mixed_data(file_str):
 
 
 
-def load_spatial_full_data(file_str):
+def load_spatial_full_data(file_str, slice_val=10000):
     """
     data loader for the spatial simulation data
     """
@@ -130,17 +130,20 @@ def load_spatial_full_data(file_str):
         try:
             with np.load(f, allow_pickle=True) as data:
                 
-                t_data = data['Time']
+                t_data = data['Time'][::slice_val].copy()
 
                 run_species_log = {}
 
-                all_data_X.append(data['X'])
-                all_data_X2.append(data['X2'])
-                run_species_log['X'] = data['X']
-                run_species_log['X2'] = data['X2']
+                sliced_X = data['X'][::slice_val].copy()
+                sliced_X2 = data['X2'][::slice_val].copy()
+
+                all_data_X.append(sliced_X) # data['X']
+                all_data_X2.append(sliced_X2) # data['X2']
+                run_species_log['X'] = sliced_X # data['X']
+                run_species_log['X2'] = sliced_X2 # data['X2']
                 trajectories.append({'timescale': t_data, 'species_log': run_species_log})
 
-                collective_pos_X.append(data['pos_X'])
+                collective_pos_X.append(data['pos_X']) 
 
                 if len(pos_Time)==0:
                     pos_Time = data['pos_Time']
