@@ -254,7 +254,7 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
               sigmas, kappas, diffusions, h, box_shape, 
               num_a_target, num_b_target):
     
-    xandx2_log = np.empty((t_f_steps, 2))
+    xandx2_log = np.empty((t_f_steps, 2), dtype=np.int32)
     x_pos_log = List() # use numba List so it can be compiled in the loop below    
     # let numba know the type of the list entries
     x_pos_log.append(pos_x.copy()) 

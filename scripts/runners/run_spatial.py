@@ -263,7 +263,7 @@ def main():
     simulation_is_feasible = True if np.sqrt((2*diff_max)*2*tau) < np.min(sigmas) else False
 
 
-    file_str = f"{diff_state}_tf_{t_f}_D_{diff_max}"
+    file_str = f"{diff_state}_tf_{t_f}_D_{diff_max}_tau_{tau}"
     DATA_DIR = get_data_dir(file_str)
 
     if simulation_is_feasible:

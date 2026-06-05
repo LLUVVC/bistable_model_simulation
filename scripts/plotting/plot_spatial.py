@@ -388,7 +388,7 @@ def main():
     slice_val = 10000 # 1 10 100 1000 10000 
                      # The slice_val only affect the analysis of 
                      # simulations with homogeneous Diffusion coefficients
-    plot_spatial(filestr, num_traj=10, slice_val=slice_val, plot_spatial_dist=True)
+    plot_spatial(filestr, num_traj=4, slice_val=slice_val, plot_spatial_dist=True)
 
 
 
