@@ -219,3 +219,5 @@ schloegl_env/
 results/
 simulation_data/
 logs/
+
+.DS_Store
