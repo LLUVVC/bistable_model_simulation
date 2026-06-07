@@ -253,7 +253,7 @@ def main():
     ###### ---------- decide if the diffusion is homogeneous in space -----------
     hetero_diff = True # True or False
     if hetero_diff:
-        box_shape = np.array((L, L, L)) # five boxes in a row along x-axis for n*L subspaces (n*L, L, L)
+        box_shape = np.array((3*L, L, L)) # five boxes in a row along x-axis for n*L subspaces (n*L, L, L)
         p = 500.
         q = 1000.
         diff_max = p + q

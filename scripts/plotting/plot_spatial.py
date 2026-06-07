@@ -358,7 +358,7 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
     dist_plot_pad = 0.5
 
     x_axis_divisions = np.linspace(0, box_shape[0], num_divisions+1)
-    diff_func = make_diff_func(p, q)
+    diff_func = make_diff_func(p, q, box_shape[0])
     # find min and max D in each division
     diff_ranges = []
     for i in range(num_divisions):
@@ -432,11 +432,11 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'hetero_tf_12.0_D_1600.0'
+    filestr = 'homo_tf_0.02_D_1500.0_tau_1e-06_box_1'
 
     slice_val = 10000
                      
-    plot_spatial(filestr, num_traj=4, slice_val=slice_val, num_div=5)
+    plot_spatial(filestr, num_traj=4, slice_val=slice_val, num_div=3)
 
 
 
