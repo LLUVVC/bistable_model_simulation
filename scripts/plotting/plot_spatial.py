@@ -366,9 +366,14 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
         dense_D = np.array([diff_func(x)[0] for x in dense_x])
         diff_ranges.append((np.min(dense_D), np.max(dense_D)))
     
-    # Modern colors for the 5 divisions
+
     colors = ['#4A90E2', '#F5A623', '#7ED321', '#D0021B', '#9013FE']
     linewidth_list = [5.0, 4.0, 3.0, 2.0, 1.5]
+    if num_divisions > 5:
+        for i in range(num_divisions-5):
+            random_hex = f"#{random.randint(0, 0xFFFFFF):06x}"
+            colors.append(random_hex)
+            linewidth_list.append(1.0)
     
     upper_bound = get_pretty_upper_bound(counts_all.reshape(-1,1)) # data from the highest diffusion division
     print(f"The calculated upper bound for #X is {upper_bound}")
@@ -432,11 +437,11 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'homo_tf_0.02_D_1500.0_tau_1e-06_box_1'
+    filestr = 'homo_tf_24.0_D_1500.0'
 
     slice_val = 10000
                      
-    plot_spatial(filestr, num_traj=4, slice_val=slice_val, num_div=3)
+    plot_spatial(filestr, num_traj=4, slice_val=slice_val, num_div=2)
 
 
 
