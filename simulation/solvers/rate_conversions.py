@@ -59,8 +59,9 @@ def calculate_l2_rates(kappa_2_plus, kappa_2_minus, DA, DX, DX2, sigma_3):
 
     return l2_plus, l2_minus
 
+
 # --- ROBUST SOLVER FOR REACTION 2 ---
-def find_kappa_2_pair_robust(l2_plus_target, l2_minus_target, DA, DX, DX2, sigma_3):
+def find_kappa_2_pair_robust(l2_plus_target, l2_minus_target, DA, DX, DX2, sigma_3, verbose=True):
     """
     Robust solver that uses physical estimates to initialize and verify the root.
     """
@@ -120,13 +121,13 @@ def find_kappa_2_pair_robust(l2_plus_target, l2_minus_target, DA, DX, DX2, sigma
     if np.abs(np.log10(k2p_sol) - np.log10(k2p_est)) > 1.0:
          print(f"⚠️ Solver result for R2 is orders of magnitude off. Discarding.")
          return k2p_est, k2m_est
-
-    print("✅ R2 Solver converged and passed physics checks.")
+    if verbose:
+        print("✅ R2 Solver converged and passed physics checks.")
     return k2p_sol, k2m_sol
 
 
 
-def calculate_kappas(ls, DA, DX, DX2, sigma):
+def calculate_kappas(ls, DA, DX, DX2, sigma, verbose=True):
     kappas = np.zeros(6)
     
     # --- REACTION 1 (R1) ---
@@ -154,7 +155,7 @@ def calculate_kappas(ls, DA, DX, DX2, sigma):
             print("⚠️ R1 Solver result orders of magnitude off. Using estimate.")
             kappas[0] = est_k1p
         else:
-            print("✅ R1 Solver converged.")
+            # print("✅ R1 Solver converged.")
             kappas[0] = k1p_sol
             
     except ValueError:
@@ -164,21 +165,40 @@ def calculate_kappas(ls, DA, DX, DX2, sigma):
     kappas[1] = ls[1] # Unimolecular (Reverse R1)
 
     # --- REACTION 2 (R2) ---
-    k2p_sol, k2m_sol = find_kappa_2_pair_robust(ls[2], ls[3], DA, DX, DX2, sigma[2])
+    k2p_sol, k2m_sol = find_kappa_2_pair_robust(ls[2], ls[3], DA, DX, DX2, sigma[2],verbose=verbose)
     kappas[2] = k2p_sol
     kappas[3] = k2m_sol
 
     # --- REACTION 3 (R3) ---
     kappas[4], kappas[5] = ls[4], ls[5] # Usually assumed 0th/1st order, effectively unchanged
 
-    # Print Summary
-    print("\n--- Final Intrinsic Rates (Kappa) ---")
-    print(f"κ₁⁺ = {kappas[0]:.4e}") # (Est: {est_k1p:.4e})
-    print(f"κ₁⁻ = {kappas[1]:.4e}") # (Est: {est_k1m:.4e})
-    print(f"κ₂⁺ = {kappas[2]:.4e}")
-    print(f"κ₂⁻ = {kappas[3]:.4e}")
-    print(f"κ₃⁺ = {kappas[4]:.4e}")
-    print(f"κ₃⁻ = {kappas[5]:.4e}")
-    print("The estimation is calculated based on the Eq. (32) in Erban's paper.")
+    if verbose:
+        # Print Summary
+        print("\n--- Final Intrinsic Rates (Kappa) ---")
+        print(f"κ₁⁺ = {kappas[0]:.4e}") # (Est: {est_k1p:.4e})
+        print(f"κ₁⁻ = {kappas[1]:.4e}") # (Est: {est_k1m:.4e})
+        print(f"κ₂⁺ = {kappas[2]:.4e}")
+        print(f"κ₂⁻ = {kappas[3]:.4e}")
+        print(f"κ₃⁺ = {kappas[4]:.4e}")
+        print(f"κ₃⁻ = {kappas[5]:.4e}")
+        print("The estimation is calculated based on the Eq. (32) in Erban's paper.")
 
     return kappas
+
+
+######################################################################################################
+############## Add this lookup table so the we can directly grab the needed kappas when ##############
+############## we set kappas susceptible to x-axis changes in space ###############################
+######################################################################################################
+
+def build_piecewise_kappa_table(ls_list, DA, DX, DX2, sigmas):
+    """
+    Builds a table for piecewise constant kappas.
+    ls_list: list of `ls` macroscopic rate arrays for each region.
+    kappa_table: saved in colum-wise.
+    """
+    num_regions = len(ls_list)
+    kappa_table = np.zeros((6, num_regions))
+    for i, ls in enumerate(ls_list):
+        kappa_table[:,i] = calculate_kappas(ls, DA, DX, DX2, sigmas, verbose=False)
+    return kappa_table

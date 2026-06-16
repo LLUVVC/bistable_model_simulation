@@ -124,8 +124,9 @@ def load_spatial_full_data(file_str, slice_val=10000):
     trajectories = []
     metadata = {}
     collective_pos_X = []
+    collective_pos_X2 = []
     pos_Time = []
-    
+
     for f in data_files:
         try:
             with np.load(f, allow_pickle=True) as data:
@@ -144,6 +145,8 @@ def load_spatial_full_data(file_str, slice_val=10000):
                 trajectories.append({'timescale': t_data, 'species_log': run_species_log})
 
                 collective_pos_X.append(data['pos_X']) 
+                if 'pos_X2' in data.files:
+                    collective_pos_X2.append(data['pos_X2'])
 
                 if len(pos_Time)==0:
                     pos_Time = data['pos_Time']
@@ -168,8 +171,11 @@ def load_spatial_full_data(file_str, slice_val=10000):
     combined_data = {}
     combined_data['X'] = np.concatenate(all_data_X)
     combined_data['X2'] = np.concatenate(all_data_X2)
-
+    collective_pos = []
+    collective_pos.append(collective_pos_X)
+    if len(collective_pos_X2):
+        collective_pos.append(collective_pos_X2)
     print(f" Loaded {len(data_files)} runs. Combined {len(combined_data['X'])} points.")
-    return trajectories, combined_data, collective_pos_X, pos_Time, metadata
+    return trajectories, combined_data, collective_pos, pos_Time, metadata
 
 

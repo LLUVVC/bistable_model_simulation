@@ -256,34 +256,38 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
     
     xandx2_log = np.empty((t_f_steps, 2), dtype=np.int32)
     x_pos_log = List() # use numba List so it can be compiled in the loop below    
+    x2_pos_log = List()
     # let numba know the type of the list entries
     x_pos_log.append(pos_x.copy()) 
     x_pos_log.pop()
+    x2_pos_log.append(pos_x2.copy()) 
+    x2_pos_log.pop()
 
     if callable(diffusions): # diffusion is a function of X-axis
-        
+        print("Test: heterogeneous diffusion.")
         with ProgressBar(total=t_f_steps) as progress:
             _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
                                 sigmas, kappas, diffusions, h, box_shape,
                                 num_a_target, num_b_target,
-                                xandx2_log, x_pos_log, progress)
-        return xandx2_log, list(x_pos_log)
+                                xandx2_log, x_pos_log, x2_pos_log, progress)
+        return xandx2_log, list(x_pos_log), list(x2_pos_log)
     
     else: # diffusion is constant in space
+        print("Test: homogeneous diffusion.")
         with ProgressBar(total=t_f_steps) as progress:
             _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
                                 sigmas, kappas, diffusions, h, box_shape,
                                 num_a_target, num_b_target,
-                                xandx2_log, x_pos_log, progress)
-        return xandx2_log, list(x_pos_log)
-
+                                xandx2_log, x_pos_log, x2_pos_log, progress)
+        return xandx2_log, list(x_pos_log), list(x2_pos_log)
+        # return ..., ..., None
 
 # Inner compiled function
 @njit
 def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
                          sigmas, kappas, diffusions, h, box_shape,
                          num_a_target, num_b_target,
-                         xandx2_log, x_pos_log, progress):
+                         xandx2_log, x_pos_log, x2_pos_log, progress):
     
     for i in range(t_f_steps):              # Numba compiled loop
         pos_x, pos_x2, pos_a, pos_b = homo_d_run_single_step_compiled(
@@ -296,11 +300,14 @@ def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
         
 
         
-        if i % 10000 == 0:
+        if i % 1000 == 0: # 10000 
             ### Not sure if there would be enough data to draw the distribution of X in space
             ### if I only save it every 10000 steps.
             ### However the output data files would be crazily large if it's recorded at every time step
             x_pos_log.append(pos_x.copy())
+            x2_pos_log.append(pos_x2.copy())
+            
+        if i % 10000 == 0:
             progress.update(10000)
 
 
@@ -308,8 +315,8 @@ def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
 def _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
                          sigmas, kappas, diff_func, h, box_shape,
                          num_a_target, num_b_target,
-                         xandx2_log, x_pos_log, progress):
-    
+                         xandx2_log, x_pos_log, x2_pos_log, progress):
+    ###### this is for heterogeneous diffusion
     for i in range(t_f_steps):              # Numba compiled loop
         pos_x, pos_x2, pos_a, pos_b = hetero_d_run_single_step_compiled(
             pos_x, pos_x2, pos_a, pos_b,
@@ -323,4 +330,5 @@ def _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
         
         if i % 10000 == 0:
             x_pos_log.append(pos_x.copy())
+            x2_pos_log.append(pos_x2.copy())
             progress.update(10000)

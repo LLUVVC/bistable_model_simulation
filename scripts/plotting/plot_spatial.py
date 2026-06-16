@@ -76,15 +76,15 @@ def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5
 
     file_str = "spatial_data/" + file_str
 
-    trajectories, combined_data, collective_pos_X, pos_Time, metadata = load_spatial_full_data(
+    trajectories, combined_data, collective_pos, pos_Time, metadata = load_spatial_full_data(
         file_str=file_str, slice_val=slice_val)
 
     # --- read the data about parameter settings ---
     macrorates = metadata['macrorates']
-    
     macrorates_k = calculate_k_from_l(macrorates)
     # --- the result folder to save plots ---
     DATA_DIR = get_data_dir(file_str)
+
 
     # ============================================================
     # =============== DISTRIBUTION + TRAJ PLOTS ==================
@@ -99,6 +99,7 @@ def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5
         q = metadata['q']   
         print(f" ----- The Diffusion function is: D(x) = -{p}*cos(pi*x) + {q}. -----")
         # print(f" ----- Test: the input box shape is {box_shape}. -----")
+        collective_pos_X=collective_pos[0]
         count_divisions, output_dir = plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, num_division=num_div)
         plot_subbox_distributions(output_dir, count_divisions, metadata, bin_width=2.) 
 
@@ -186,13 +187,49 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
     vol = np.prod(box_shape)
     a = metadata['a']
     b = metadata['b']
-
+    '''
     ori_len_traj = len(trajectories)
     num_traj = min(ori_len_traj, num_traj)
     if num_traj < ori_len_traj:
         trajectories = random.sample(trajectories, num_traj)
 
     combined_data_X = combined_data['X']
+    '''
+    ori_len_traj = len(trajectories)
+    num_traj = min(ori_len_traj, num_traj)
+    
+    if num_traj < ori_len_traj:
+        trajectories = random.sample(trajectories, num_traj)
+        
+        # overwrite the combined_data to ONLY include the sampled trajectories
+        combined_data_X = np.concatenate([t['species_log']['X'] for t in trajectories])
+        if 'X2' in trajectories[0]['species_log']:
+            combined_data_X2 = np.concatenate([t['species_log']['X2'] for t in trajectories])
+        else:
+            combined_data_X2 = np.array([])
+    else:
+        combined_data_X = combined_data['X']
+        combined_data_X2 = combined_data.get('X2', np.array([]))
+        
+    # print the X and X2 statistics
+    if len(combined_data_X2) > 0:
+        # Filter out moments where X is 0 to avoid dividing by zero
+        valid_idx = combined_data_X > 0 # 135
+        safe_X = combined_data_X[valid_idx]
+        safe_X2 = combined_data_X2[valid_idx]
+        
+        # Calculate ratio: (X2 * Vol) / (X^2)
+        ratio_1 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
+        print(f"----- Test: the ratio is {ratio_1:.3f} × 10⁻³ -----")
+        k_eff = np.mean(safe_X2*8*2/(safe_X*(safe_X-1)))
+        print(f"----- Test: the ratio is {k_eff:.7f}  -----")
+        # valid_idx = (combined_data_X < 135) & (combined_data_X > 0)
+        # safe_X = combined_data_X[valid_idx]
+        # safe_X2 = combined_data_X2[valid_idx]
+        # # Calculate ratio: (X2 * Vol) / (X^2)
+        # ratio_2 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
+        # print(f"----- Test: the low ratio is {ratio_2:.3f} \times 10^{{{-3}}} -----")
+
     upper_bound = get_pretty_upper_bound(combined_data_X)
     print(f"The calculated upper bound for #X is {upper_bound}")
 
@@ -221,7 +258,7 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
             linewidth=2, zorder=4, label='Analytical')
     
 
-    ax.set_title(f'Combined trajectories: {ori_len_traj}')
+    ax.set_title(f'Combined trajectories: {num_traj}')
     ax.set_xlabel('Particle Count')
     ax.set_ylabel('Probability')
     ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
@@ -236,9 +273,9 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
     
     textstr = '\n'.join((
         rf"$\mathbf{{Rates_{{macro}}}}$: {format_rate_list(macrorates)}",
-        rf"$\mathbf{{Rates_{{micro}}}}$: {format_rate_list(microrates)}",
-        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad$BC: Periodic",
-        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
+        rf"$\mathbf{{Rates_{{micro}}}}$: {format_rate_list(microrates.reshape(-1))}",
+        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad BC: Periodic \quad | \quad K_eff: {k_eff:.7f}$",
+        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f} \quad | \quad Ratio: {ratio_1:.3f} \times 10^{{{-3}}}$" 
     ))
 
     props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
@@ -272,7 +309,7 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
     # plt.show()
 
 
-def plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, num_division=3):
+def plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, num_division=2):
     # parameters
     tau = metadata['timestep']
     box_shape = metadata['box_shape']
@@ -347,8 +384,8 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
     num_divisions = counts_all.shape[-1]
     counts_all = counts_all.reshape(-1,num_divisions)
 
-    p = metadata['p']
-    q = metadata['q']
+    kappas = metadata['microrates']
+    print(kappas)
     box_shape = metadata['box_shape']
     # fig, ax = plt.subplots(figsize=(10,8), subplot_kw={'projection': '3d'})
     fig = plt.figure(figsize=(16, 8))
@@ -357,14 +394,15 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
 
     dist_plot_pad = 0.5
 
-    x_axis_divisions = np.linspace(0, box_shape[0], num_divisions+1)
-    diff_func = make_diff_func(p, q, box_shape[0])
+    # for different diffusions
+    # x_axis_divisions = np.linspace(0, box_shape[0], num_divisions+1)
+    # diff_func = make_diff_func(p, q, box_shape[0])
     # find min and max D in each division
-    diff_ranges = []
-    for i in range(num_divisions):
-        dense_x = np.linspace(x_axis_divisions[i], x_axis_divisions[i+1], 100)
-        dense_D = np.array([diff_func(x)[0] for x in dense_x])
-        diff_ranges.append((np.min(dense_D), np.max(dense_D)))
+    # diff_ranges = []
+    # for i in range(num_divisions):
+    #     dense_x = np.linspace(x_axis_divisions[i], x_axis_divisions[i+1], 100)
+    #     dense_D = np.array([diff_func(x)[0] for x in dense_x])
+    #     diff_ranges.append((np.min(dense_D), np.max(dense_D)))
     
 
     colors = ['#4A90E2', '#F5A623', '#7ED321', '#D0021B', '#9013FE']
@@ -388,16 +426,21 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
         hist_bin, density_hist = hist_np(raw_data, upper_bound, bin_width)
         # print(f"Test: for the round {i}, the sum of density hist is {np.sum(density_hist*bin_width)}")
 
-        label_str = f"D: {diff_ranges[i][0]:.0f} ~ {diff_ranges[i][1]:.0f} | Avg X: {avg_count:.1f}" if p else ""
+        label_str = f"kappa_group: {i} | Avg X: {avg_count:.1f}" # if p else ""
         ax.bar(hist_bin, density_hist, zs=num_divisions-i-dist_plot_pad, zdir='x', width=bin_width, color=colors[i], 
                edgecolor='white', linewidth=0.3, alpha=0.85, label=label_str)
 
         ax_2d.step(hist_bin, density_hist, where='mid', color=colors[i], 
                    linewidth=linewidth_list[i], alpha=0.85, label=label_str)
+    
+    text_lines = []
+    for i in range(kappas.shape[1]):
+        values_str = ", ".join([f"{x:.3f}" for x in kappas[:, i]])
+        text_lines.append(rf"$\kappa_{i+1}$: {values_str}")
 
-    # ax.plot(p_states, stat_dist, zs=0, zdir='x', color='#c0392b', linestyle='--', linewidth=2.5, zorder=1, alpha=0.9, label='Analytical Distribution')   
-    # ax_2d.plot(p_states, stat_dist, color='#c0392b', linestyle='--', linewidth=2.5, alpha=0.6, label='Analytical Distribution')  
-
+    textstr = '\n'.join(text_lines)
+    fig.text(0.5, 0.02, textstr, fontsize=12, ha='center')
+    # plt.subplots_adjust(bottom=0.15) # Add space at the bottom for your text
     ax.set_xlabel('Spatial Division', labelpad=10)
     ax.set_ylabel('Particle Count', labelpad=10)
     ax.set_zlabel('Probability Density', labelpad=10)
@@ -437,11 +480,11 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'homo_tf_24.0_D_1500.0'
+    filestr = 'homo_test'
 
-    slice_val = 10000
+    slice_val = 50000
                      
-    plot_spatial(filestr, num_traj=4, slice_val=slice_val, num_div=2)
+    plot_spatial(filestr, num_traj=100, slice_val=slice_val, num_div=2)
 
 
 

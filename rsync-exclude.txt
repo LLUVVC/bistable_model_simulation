@@ -1,0 +1,9 @@
+logs/
+.git/
+.gitignore
+.DS_Store
+__pycache__/
+schloegl_env
+results
+simulation_data
+*.tmp

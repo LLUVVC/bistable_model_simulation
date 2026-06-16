@@ -4,11 +4,34 @@ from numba_progress import ProgressBar
 from simulation.utils.geometry_fast import generate_position_box_numba
 
 
+@njit(inline='always')
+def get_kappa(x, kappa_table, L):
+    num_region = kappa_table.shape[0]
+    L = L/num_region
+    
+    if num_region == 1: 
+        return kappa_table[0]
+
+    # otherwise, kappa is piecewise on x-axis. find which region x is in:
+    region_idx = int(x // L)
+    
+    if region_idx < 0: region_idx = 0
+    elif region_idx >= len(kappa_table): region_idx = len(kappa_table) - 1
+    
+    return kappa_table[region_idx]
+
 
 @njit
 def unimolecularSelectReactant_numba(pos_r, kappa, h):
+    '''
+    kappa: the array of shape (num_regions,) for the i-th reaction
+
+    but we keep the kappas of all unimolecular reactions unchanged, so actually
+    just return the first value of the input kappa array is fine
+    '''
     num_r = len(pos_r)
-    react_prob = 1.0 - np.exp(-kappa * h)
+    local_kappa = kappa[0]
+    react_prob = 1.0 - np.exp(-local_kappa * h)
     
     # 1. Generate random numbers
     rands = np.random.random(num_r)
@@ -86,9 +109,10 @@ def maintain_bath_numba(pos, box_shape, target_num):
 
 @njit
 def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_shape):
-    
+    '''
+    kappa: the array of shape (num_regions,) for the i-th reaction
+    '''
     sigma_sq = sigma * sigma
-    prob = 1.0 - np.exp(-kappa * h)
 
     # --- PHASE REACT (Linear Loop) ---
     n1 = len(pos_r1)
@@ -117,7 +141,11 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
         # Check if they are still available
         if mask_1[i] or mask_2[j]: 
             continue
-            
+        
+        midpoint_x = 0.5 * (pos_r1[i,0] + pos_r2[j,0])
+        local_kappa = get_kappa(midpoint_x, kappa, box_shape[0]) # pass down the corresponding function
+        prob = 1.0 - np.exp(-local_kappa * h)
+
         # Roll the dice
         if np.random.random() < prob:
             mask_1[i] = True
@@ -129,8 +157,10 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
 
 @njit
 def bimolecular_homo_candidates_update(pos_r, sigma, kappa, h, box_shape):
+    '''
+    kappa: the array of shape (num_regions,) for the i-th reaction
+    '''
     sigma_sq = sigma * sigma
-    prob = 1.0 - np.exp(-kappa * h)
     
     # --- PHASE 1: SEARCH (Vectorized) ---
     # 1. Calculate vector differences (Broadcasting)
@@ -167,7 +197,11 @@ def bimolecular_homo_candidates_update(pos_r, sigma, kappa, h, box_shape):
         # Check if they are still available
         if mask[i] or mask[j]: 
             continue
-            
+
+        midpoint_x = 0.5 * (pos_r[i,0] + pos_r[j,0])
+        local_kappa = get_kappa(midpoint_x, kappa, box_shape[0])
+        prob = 1.0 - np.exp(-local_kappa * h)
+
         # Roll the dice
         if np.random.random() < prob:
             mask[i] = True
