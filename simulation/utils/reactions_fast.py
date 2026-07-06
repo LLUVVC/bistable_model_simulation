@@ -147,7 +147,7 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
         prob = 1.0 - np.exp(-local_kappa * h)
 
         # Roll the dice
-        if np.random.random() < prob:
+        if np.random.random() < prob: # <=
             mask_1[i] = True
             mask_2[j] = True
             react_idx_1.append(i)

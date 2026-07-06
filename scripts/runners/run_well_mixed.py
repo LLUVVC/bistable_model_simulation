@@ -243,9 +243,9 @@ def main():
     a = 10.0
     b = 20.0
     num_runs = 1
-    t_f = 24.
-    tau = 1e-6
-    save_every_n_steps = int(10000) # otherwise the data is too dense, the savings would be very large
+    t_f = 500.
+    tau = 5e-7
+    save_every_n_steps = int(100) # otherwise the data is too dense, the savings would be very large
                                     # note that when comparing data with different tau against each other, 
                                     # slice the stored data to equalize the data points to be used.
                                     
@@ -256,8 +256,14 @@ def main():
     # ==========================================
     if MODEL_TO_RUN == "full":
         # Parameters unique to the Full model
-        l = np.array((1.5, 1500., 150., 25., 5.75, 25.)) # check it again 
 
+        l = np.array((1.5, 1500., 150., 25., 5.75, 25.))
+        # keq = 0.005
+        # l[0] = l[0]*(keq/0.001)
+        # l[2] = l[2]*(0.001/keq)
+        # l[3] = l[2]/6.
+        # # l[0] = l[0]*5.
+        # # l[1] = l[1]*5.
         print(f"The simulation parameter is: {l}")
         
         # Safely create the folder name using f-strings 

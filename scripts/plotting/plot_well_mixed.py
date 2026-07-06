@@ -188,11 +188,11 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
         W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
         ax.bar(hist_bin, density_hist, width=bin_width, 
-               color='#a9cce3', edgecolor='white', alpha=0.6, label='Simulation') # '#d5d8dc'
-        ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=2.5, 
+               color='#a9cce3', alpha=0.6, label='Simulation') # '#d5d8dc'# edgecolor='white',
+        ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=3.5, 
                 zorder=3, label='KDE') # '#2e4053'
-        ax.plot(p_states, stat_dist, color='#e74c3c', linestyle='--', 
-                linewidth=2, zorder=4, label='Analytical') # '#f39c12'
+        ax.plot(p_states, stat_dist, color='#e74c3c', 
+                linewidth=2.5, zorder=4, label='Analytical') # '#f39c12' # linestyle='--'
         
         ####### skip the two vertical lines for the two analytical bistable states
 
@@ -239,24 +239,24 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     exponent = int(np.floor(np.log10(tau)))
     base = tau / 10**exponent
 
-    textstr = '\n'.join((
-        rf"$\mathbf{{Rates_{{{model}}}}}$: {formatted_rates}",
-        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad V={vol:.1f}$",
-        rf"$\tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
-    ))
+    # textstr = '\n'.join((
+    #     rf"$\mathbf{{Rates_{{{model}}}}}$: {formatted_rates}",
+    #     rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad V={vol:.1f}$",
+    #     rf"$\tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
+    # ))
 
-    props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
+    # props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
 
-    fig_dist.text(0.5, 0.85, textstr, transform=fig_dist.transFigure, fontsize=8,
-            ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
-    fig_dist.suptitle(
-        r"$\bf{Bistable\ System\ Analysis}$" + "\n" + 
-        f"Well-Mixed {model} Distribution",
-        fontsize=16, 
-        y=0.98
-    )
-    fig_dist.tight_layout(rect=[0, 0.05, 1, 0.75])
-    
+    # fig_dist.text(0.5, 0.85, textstr, transform=fig_dist.transFigure, fontsize=8,
+    #         ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
+    # fig_dist.suptitle(
+    #     r"$\bf{Bistable\ System\ Analysis}$" + "\n" + 
+    #     f"Well-Mixed {model} Distribution",
+    #     fontsize=16, 
+    #     y=0.98
+    # )
+    # fig_dist.tight_layout(rect=[0, 0.05, 1, 0.75])
+    fig_dist.tight_layout()
     # fig_traj.subplots_adjust(top=0.7, bottom=0.15, hspace=0.3, wspace=0.3) #plt
     
     # --- Dynamically calculate relative positions based on figure height ---
@@ -264,18 +264,18 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     text_y = 1.0 - (1.0 / fig_height)          # Text box is always 1.0 inch from the top
     rect_top = 1.0 - (header_height / fig_height) # Plot grid stops exactly 2 inches from the top
 
-    fig_traj.text(0.5, text_y, textstr, transform=fig_traj.transFigure, fontsize=9,
-            ha='center', va='top', multialignment='left', bbox=props, linespacing=1.5)
+    # fig_traj.text(0.5, text_y, textstr, transform=fig_traj.transFigure, fontsize=9,
+    #         ha='center', va='top', multialignment='left', bbox=props, linespacing=1.5)
     
-    fig_traj.suptitle(
-        r"$\bf{Bistable\ System\ Distribution}$" + "\n" + 
-        f"Well-Mixed {model} Trajectories (Examples)",
-        fontsize=16, 
-        y=title_y
-    )
+    # fig_traj.suptitle(
+    #     r"$\bf{Bistable\ System\ Distribution}$" + "\n" + 
+    #     f"Well-Mixed {model} Trajectories (Examples)",
+    #     fontsize=16, 
+    #     y=title_y
+    # )
     
-    fig_traj.tight_layout(rect=[0, 0, 1, rect_top])
-
+    # fig_traj.tight_layout(rect=[0, 0, 1, rect_top])
+    
     # --- Get timestamp for filename ---
     # Format as YYYY-MM-DD_HH-MM-SS
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -305,9 +305,9 @@ def main():
     it can be manually change to True if needed.
     
     """
-    filestr =  "full_model_1.5_1500.0_tf_24.0_tau1e-6" # "schloegl_model_0.15_0.025"
+    filestr =  "full_model_1.5_1500.0_tf_500_tau1e-6" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=10, optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=4, optimize_bw=False) # optimize_bw as an input
 
 
 

@@ -7,9 +7,6 @@ Reaction rates of the well-mixed full model -> Reaction rates of the spatial ful
 
 """
 
-import numpy as np
-from scipy.optimize import root_scalar, root
-
 
 def calculate_k_from_l(l):
     keq = l[0]/l[1]
@@ -155,7 +152,7 @@ def calculate_kappas(ls, DA, DX, DX2, sigma, verbose=True):
             print("⚠️ R1 Solver result orders of magnitude off. Using estimate.")
             kappas[0] = est_k1p
         else:
-            # print("✅ R1 Solver converged.")
+            print("✅ R1 Solver converged.")
             kappas[0] = k1p_sol
             
     except ValueError:
@@ -201,4 +198,5 @@ def build_piecewise_kappa_table(ls_list, DA, DX, DX2, sigmas):
     kappa_table = np.zeros((6, num_regions))
     for i, ls in enumerate(ls_list):
         kappa_table[:,i] = calculate_kappas(ls, DA, DX, DX2, sigmas, verbose=False)
+    # print(kappa_table)
     return kappa_table

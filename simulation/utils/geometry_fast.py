@@ -77,11 +77,11 @@ def homo_diffusion_periodic_step_numba(pos, diffusion, h, box_shape):
     # 1. Diffusion Kick
     # scale = sqrt(2 * D * dt)
     scale = np.sqrt(2.0 * diffusion * h)
-    
+    # print(scale)
     # 2. Update Position & Check Boundaries (One Loop)
     for i in range(n):
         for dim in range(3):
-            kick = np.random.normal(0.0, 1.0) * scale
+            kick = np.random.normal(0.0, 1.0) * scale[dim]
             # Apply Kick
             new_val = pos[i, dim] + kick
             

@@ -15,22 +15,8 @@ import re
 import math
 from numba import njit
 
-# Compiled ONCE when the script loads, not once per simulation run
-def make_diff_func(p, q, box_shape_0):
-    @njit
-    def diff_func(pos):
-        # D(x) = -p * cos(omega * x) + q
-        # omega = (2*pi)/box_shape_0 
-        omega = 2 * math.pi / box_shape_0
-        D = -p * math.cos(omega * pos) + q
-        # Derivative: dD/dx = omega* p * sin(omega * x)
-        dD_dx = omega * p * math.sin(omega * pos)
-        return D, dD_dx 
-    return diff_func
-
-
+from simulation.solvers.rate_conversions import calculate_kappas, build_piecewise_kappa_table
 from simulation.solvers.spatial_process import simul_initialize, simul_run
-from simulation.solvers.rate_conversions import calculate_kappas
 from pathlib import Path
 
 
@@ -83,11 +69,11 @@ def initialization(box_shape, keq, c_a, c_b):
     return pos_x, pos_x2, pos_a, pos_b
     
 
-def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape, result_dir, p, q, hetero_diff=False):
+def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape, result_dir, p, q, hetero=False):
     
     keq = ls[0]/ls[1]
-    
-    
+    DA, DX, DX2 = diffusions[1,2], diffusions[1,0], diffusions[1,1]
+
     print(f"initializing the simulation box...")
 
     NUM_RUNS_TO_DO = num       # Number of simulations to run *this time*
@@ -135,7 +121,7 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         n_a, n_b = len(pos_a), len(pos_b)
         print(f"  Starting the spatial-resolution simulation of the full model (t_f={t_f}, tau={tau})...")
 
-        if hetero_diff:
+        if hetero:
             """
             The Diffusion is no longer a constant in the simulation box, but now
             D = D(x), x represents the x-axis of the simulation box (2 * 2 * 2).
@@ -143,27 +129,24 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
             -> D(x) = -p * cos(omega*x) + q, where p, q are constants.
             Note: D(x) has to be @njit
             """
-            diffusions = diffusions / diffusions[2] * (q + 0.5 * p) ##### ---> perhaps need to change this!!!
-            DA, DX, DX2 = diffusions[2], diffusions[0], diffusions[1]
-            ##### keep the microrates that corresponds to a "middle" diffusion coefficients
-            kappas = calculate_kappas(ls, DA, DX, DX2, sigmas)  
             
-            diff_func = make_diff_func(p, q, box_shape[0])
-            
-            print(f" --- Test: box shape for heterogeneous diffusion simulation is: {box_shape} --- ")
-            num_log, pos_x_log = simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
-                    diff_func, tau, box_shape, num_a_target=n_a, num_b_target=n_b)
+            ls_2 = ls.copy()
+            ls_2[2] = 152
+            ls_list = [ls, ls_2]
+            # 1. build the table
+            kappas = build_piecewise_kappa_table(ls_list, DA, DX, DX2, sigmas) 
+            num_log, pos_x_log, pos_x2_log = simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
+                                           diffusions, tau, box_shape, num_a_target=n_a, num_b_target=n_b)
             time_log = np.arange(t_f_steps)
 
         else:
-
-            DA, DX, DX2 = diffusions[2], diffusions[0], diffusions[1]
+        
             kappas = calculate_kappas(ls, DA, DX, DX2, sigmas)
-            num_log, pos_x_log = simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
+            kappas = kappas[:,np.newaxis]
+            num_log, pos_x_log, pos_x2_log = simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
                     diffusions, tau, box_shape, num_a_target=n_a, num_b_target=n_b)
             time_log = np.arange(t_f_steps)
-            print(f"Test: homogeneous diffusion, p={p}, q={q}.")
-
+            
         pos_x_log_timestep = int((len(time_log)-1)/(len(pos_x_log)-1)) # remove the first entry
         # print(f" ---- Test: the positions of X in the system are recorded every {pos_x_log_timestep} steps ----")
 
@@ -171,15 +154,16 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         # --- Data Collection ---
         # the data without the simulation within 't_burn_in'
         burn_in_indices = np.where(time_log >= t_burn_in_steps)[0] 
-        
-        
+
+
         if len(burn_in_indices) == 0:
             # Simulation was shorter than burn-in time
             print(f"Warning: Simulation time ({t_f}s) is shorter than burn-in time ({t_burn_in}s). Saving no data.")
             data_to_save_X = np.array([])
             data_to_save_X2 = np.array([])
             # Package the jagged list into an 'object' array, so it can be compressed into .npz 
-            pos_x_obj_array = np.empty(len(pos_x_log), dtype=object)
+            pos_x_obj_array = np.empty(1, dtype=object)
+            pos_x2_obj_array = np.empty(1, dtype=object)
             
             return None 
         
@@ -189,8 +173,26 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
             data_to_save_X2 = num_log[burn_in_index:, 1] # Save X2 data
             pos_burn_in_index = int(np.ceil(burn_in_index/pos_x_log_timestep))
             pos_x_obj_array = np.empty(len(pos_x_log), dtype=object)
-            for k in range(len(pos_x_log)):
-                pos_x_obj_array[k] = pos_x_log[k][pos_burn_in_index:]
+            
+            # check if pos_x2_log exists and isn't empty
+            if pos_x2_log is None:
+                pos_x2_obj_array = np.empty(1, dtype=object)
+                pos_x_log_burned = pos_x_log[pos_burn_in_index:]
+                for k in range(len(pos_x_log_burned)):
+                    pos_x_obj_array[k] = pos_x_log_burned[k]
+                    
+                    
+            else:
+                pos_x2_obj_array = np.empty(len(pos_x2_log), dtype=object)
+
+                pos_x_log_burned = pos_x_log[pos_burn_in_index:]
+                pos_x2_log_burned = pos_x2_log[pos_burn_in_index:]
+                for k in range(len(pos_x_log_burned)):
+                    pos_x_obj_array[k] = pos_x_log_burned[k]
+                    
+                for k in range(len(pos_x2_log_burned)):
+                    pos_x2_obj_array[k] = pos_x2_log_burned[k]
+
             time_log_pos = time_log[::pos_x_log_timestep]
 
 
@@ -198,12 +200,13 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
         # Use 4-digit padding for nice filenames (0000, 0001, 0002, ...)
         pid = os.getpid() # the simulation with spatial resolution takes a long time, add the "pid" in case the data gets overwritten
                           # when we run multiple simulations at the same time
-        output_filename = os.path.join(DATA_DIR, f"run_data_spatial_{i:04d}_pid{pid}.npz") 
+        output_filename = os.path.join(DATA_DIR, f"run_data_spatial_{i:04d}_pid{pid}.npz")                 
+
         np.savez_compressed(output_filename, X=data_to_save_X, X2=data_to_save_X2, Time=time_log[burn_in_index:],
                             # metadata
                             pos_X=pos_x_obj_array, pos_Time=time_log_pos[pos_burn_in_index:],
                             l=ls, kappa=kappas, tau=tau, box_shape=box_shape, t_f=t_f, a=c_a, b=c_b,
-                            sigma=sigmas[0], D=diffusions[0], p=p, q=q) # For simplicity, only one scalar for sigma and for D are saved
+                            sigma=sigmas[0], D=diffusions[0], p=p, q=q, pos_X2=pos_x2_obj_array) # For simplicity, only one scalar for sigma and for D are saved
                                                               # since we assume they are all equal for different chemicals and reactions
         
         print(f"  Successfully saved {len(data_to_save_X)} data points to {output_filename}")
@@ -219,15 +222,12 @@ def main():
     """ Main execution block containing all physics parameters. """
     ###### ================================== 1. parameter setting =====================================
     L = 2. # cubic box length
-
-    diff_scale = 1500. 
+        
     DA = 1. 
     DB = 1. 
     DX = 1.  
     DX2 = 1. 
 
-    diffusions = np.array((DX, DX2, DA, DB)) * diff_scale 
-    diff_max = np.max(diffusions)
     ##### There are 6 reactions but only 4 sigma values
     ##### because the reactions B <-> X involve no sigma value
     sigmas = np.array((1., 1., 1., 1.)) * 0.1 # sigma_r1f, sigma_r1b, sigma_r2f, sigma_r2b
@@ -241,40 +241,56 @@ def main():
     # full model reaction rates
     ls = np.array((1.5, 1500., 150., 25., 5.75, 25.))
     print("Reaction rates for bistable full model: ",ls)
-    
+    ##### as for the varied_l -> varied_kappa, i packed it into the run_spatial function
 
     ###### ---------- diffusion function -----------
     ###### obey the form: D(x) = - p * cos(omega * x) + q
     ###### continuous even at boundary -> smooth D' -> have to consider the spurious drift
     p = 0.
     q = 0.
+    ###### we discard the heterogeneous diffusion implementation now so p=q=0
 
-    diff_state = "homo"
-    ###### ---------- decide if the diffusion is homogeneous in space -----------
-    hetero_diff = True # True or False
-    if hetero_diff:
-        box_shape = np.array((L, L, L)) # five boxes in a row along x-axis for n*L subspaces (n*L, L, L)
-        p = 500.
-        q = 1000.
-        diff_max = p + q
-        diff_state = "hetero"
 
-    ###### ============================== 2. calculate microscopic rates =================================
-    ###### ============================ and actually start the simulations ===============================
+    
+    
+    ###### ---------- decide if kappa is homogeneous in space -----------
+    hetero = True # True or False
+    if hetero:
+        state = "hetero"
+        # diff_str = 'anisotropic'
+        diff_scale_y_z = 1500. 
+        diff_scale_x = 10.
+        diffusions = np.tile(np.array((DX, DX2, DA, DB)),(3,1))
+        diffusions = diffusions.T
+        diffusions[:,0] = diffusions[:,0] * diff_scale_x
+        diffusions[:,1] = diffusions[:,1] * diff_scale_y_z
+        diffusions[:,2] = diffusions[:,2] * diff_scale_y_z
+        
+    else:
+        state = "homo"
+        # diff_str = 'isotropic'
+        diff_scale = 1500.
+        diffusions = np.array((DX, DX2, DA, DB)) * diff_scale
+        diffusions = np.tile(np.array((DX, DX2, DA, DB)),(3,1))
+        diffusions = diffusions.T
+
+    
+    # diffusions = np.array((100, 1500, 100, 100))
+    diff_max = np.max(diffusions)
+
+    ###### ============================ actually start the simulations ===============================
 
     num_run = 1
-    t_f = 12. # 20.
+    t_f = .1 # 20.
     tau = 1e-6 # 1e-6
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------
     simulation_is_feasible = True if np.sqrt((2*diff_max)*2*tau) < np.min(sigmas) else False
-
-
-    file_str = f"{diff_state}_tf_{t_f}_D_{diff_max}_tau_{tau}_box_{int(box_shape[0]/L)}"
+    file_str = f"{state}_kp_tf_{t_f}_{diff_max}_tau_{tau}"
     DATA_DIR = get_data_dir(file_str)
 
     if simulation_is_feasible:
-        run_save_spatial(num_run, t_f, tau, ls, sigmas, diffusions, 10, 20, box_shape, DATA_DIR, p, q, hetero_diff=hetero_diff)
+        run_save_spatial(num_run, t_f, tau, ls, sigmas, diffusions, 10, 20, box_shape, DATA_DIR, p, q, hetero=hetero)
     else:
         print("Please reduce the simulation time intervals.")
 
@@ -283,3 +299,19 @@ if __name__ == "__main__":
     main()
 
 
+"""
+
+# Compiled ONCE when the script loads, not once per simulation run
+def make_diff_func(p, q, box_shape_0):
+    @njit
+    def diff_func(pos):
+        # D(x) = -p * cos(omega * x) + q
+        # omega = (2*pi)/box_shape_0 
+        omega = 2 * math.pi / box_shape_0
+        D = -p * math.cos(omega * pos) + q
+        # Derivative: dD/dx = omega* p * sin(omega * x)
+        dD_dx = omega * p * math.sin(omega * pos)
+        return D, dD_dx 
+    return diff_func
+    
+    """

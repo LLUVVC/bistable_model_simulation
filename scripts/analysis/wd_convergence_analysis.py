@@ -163,77 +163,97 @@ def single_group_wd_analysis(resolution, data_file, n_iterations = 100):
     plt.tight_layout()
     plt.show()
 
-
-
-def multi_group_wd_comparison(resolution, n_iterations=100):
-
-    resolution = resolution + "_data" # or: "spatial_data"
-    search_pattern = "results/wd_analysis/" + resolution + "/*/iter_" + f"{n_iterations}" + "_tau_*.npz"
-
+def multi_group_wd_comparison(resolution, n_iterations=100, base_dir='.'):
+    resolution = resolution + "_data"
+    search_pattern = os.path.join(base_dir, "results/wd_analysis", resolution, "*", f"iter_{n_iterations}_tau_*.npz")
     files_to_read = glob.glob(search_pattern)
 
     if not files_to_read:
         print(f" Error: No files found.")
         return None, None, None
     
-    # Dictionary to hold your loaded data
     all_data = {}
     for f in files_to_read:
         filename = os.path.basename(f)
         tau_value = filename.split("tau_")[1].replace(".npz", "")
         all_data[tau_value] = np.load(f, allow_pickle=True)
-        # all_data[tau_value] = np.load(f)
-        print(f"Successfully loaded data.")
+        print(f"Successfully loaded data for tau={tau_value}")
 
     first_key = list(all_data.keys())[0]
     params_dict = all_data[first_key]['params'].item()
     macrorates = params_dict['macrorates']
 
-    batch_size = np.arange(20,101,20)
+    batch_size = np.arange(20, 101, 20)
 
     fig, ax = plt.subplots(figsize=(9, 5.5))
 
-    colors = ['#1F4E79', '#C55A11', '#548235'] # '#7030A0' # ['#0072B2','#D55E00', '#009E73', '#CC79A7']
+    # A beautiful sequential palette (Dark Navy -> Purple -> Blue -> Teal)
+    # Visually represents the parameter \tau shrinking!
+    # colors = ['#1B2A4A', '#215F88', '#2B939B', '#63C3A1']
+    # colors = ['#1D2D44', '#414868', '#745174', '#E06A6B']
+    colors = ['#1A365D', '#2B6CB0', '#48BB78', "#532C83"]
+    line_styles = ['-', '-', '--', ':'] 
+    markers = ['o', 's', '^', 'D']
+    # 1. SORT the data so the legend matches the top-to-bottom visual order
+    # reverse=True makes the largest tau (1e-5) plot first
+    sorted_taus = sorted(all_data.keys(), key=lambda x: float(x), reverse=True)
+
+    for i, tau_str in enumerate(sorted_taus):
+        mean = all_data[tau_str]['mean']
+        std = all_data[tau_str]['std']
+        
+        # 2. Format Scientific Notation beautifully for the legend
+        parts = tau_str.split('e')
+        base = float(parts[0])
+        exp = int(parts[1])
+        if base == 1.0:
+            latex_tau = rf'10^{{{exp}}}'
+        else:
+            latex_tau = rf'{base:g} \times 10^{{{exp}}}'
+
+        # Make the last line (teal) dashed and use a square marker ('s')
+        # line_style = '--' if i == 3 else '-'
+        # marker_style = 's' if i == 3 else 'o'
+        # Plot the main line with the dynamic styles
+        ax.plot(batch_size, mean, linestyle=line_styles[i], marker=markers[i], 
+                color=colors[i], linewidth=2.5, markersize=6, label=rf'$\tau = {latex_tau}$')
+        # 3. Fix the shading (remove the harsh dashed lines, use clean soft alpha)
+        ax.fill_between(batch_size, mean - std, mean + std, color=colors[i], alpha=0.1, edgecolor='none')
+
+
+    ax.set_xlabel('Batch Size (Number of Trajectories)', fontsize=13)
+    ax.set_ylabel(r'Wasserstein Distance $(W_d)$', fontsize=13)
     
-    for i, entry in enumerate(all_data):
-        mean = all_data[entry]['mean']
-        std = all_data[entry]['std']
-
-        ax.plot(batch_size, mean, '-o', color=colors[i], linewidth=2, markersize=5, label=rf'$\tau = {entry}$')
-        ax.fill_between(batch_size, mean - std, mean + std, color=colors[i], alpha=0.05)
-        ax.plot(batch_size, mean - std, '--', color=colors[i], linewidth=0.8, alpha=0.6)
-        ax.plot(batch_size, mean + std, '--', color=colors[i], linewidth=0.8, alpha=0.6)
-
-    ax.set_xlabel('Batch Size (Number of Trajectories)', fontsize=12)
-    ax.set_ylabel(r'Wasserstein Distance $(W_d)$', fontsize=12)
-    ax.set_title(r'$W_d$ Convergence with Respect to Batch Size', fontsize=13, fontweight='bold')
+    # Optional: Remove title for thesis, put it in LaTeX caption
+    # ax.set_title(r'$W_d$ Convergence with Respect to Batch Size', fontsize=14, fontweight='bold')
 
     ax.set_xlim(batch_size[0] - 5, batch_size[-1] + 5)
-    ax.set_ylim(bottom=1.0)   # don't let it go to 0, the band going negative is misleading
+    ax.set_ylim(bottom=1.0) 
 
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.legend(fontsize=11, framealpha=0.9)
+    
+    # Move legend slightly out of the way of the data if needed
+    ax.legend(fontsize=12, framealpha=0.9, loc='upper right')
 
     filestr = "wd_analysis/" + resolution
     DATA_DIR = get_data_dir(filestr)
     os.makedirs(DATA_DIR, exist_ok=True)
     
-    filename_wd = f"wd_comparison_iter_{n_iterations}_{macrorates}.png"
+    filename_wd = f"wd_comparison_iter_{n_iterations}_{macrorates}.png" # Save as PDF!
     output_plot_path_wd = os.path.join(DATA_DIR, filename_wd)
     fig.savefig(output_plot_path_wd)
-    plt.tight_layout()
-    plt.show()
-    
+    # fig.savefig(output_plot_path_wd, dpi=300, bbox_inches='tight')
+    plt.show()    
 
 def main():
     resolution = "well_mixed"
-    n_iterations = 50
+    n_iterations = 150
     data_file = "full_model_1.5_1500.0_tf_500_tau1e-5" # "full_model_1.5_1500.0_tf_500_tau5e-7"
     
-    single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"
-    # multi_group_wd_comparison(resolution, n_iterations=n_iterations)
+    # single_group_wd_analysis(resolution, data_file, n_iterations=n_iterations) # or: "spatial"
+    multi_group_wd_comparison(resolution, n_iterations=n_iterations)
 
 """
 TO DO:

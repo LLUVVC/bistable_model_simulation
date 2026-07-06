@@ -62,14 +62,14 @@ def main():
     # =========================================================
     # FLEXIBLE INPUT: Define your folder names and labels here
     # =========================================================
-    folder_1 = 'homo_tf_24.0_D_1500.0_1'
+    folder_1 = 'homo_tf_24.0_D_1500.0'
     folder_2 = 'homo_tf_24.0_D_1500.0_tau_2e-07'
     
     label_1 = r'$\tau = 10^{-6}$ (Numerical Smearing)'
     label_2 = r'$\tau = 2\times 10^{-7}$ (Physical Spatial Correlations)'
     
     # How many of the final snapshots to average over (for steady state)
-    num_snapshots = 2400 # 500 
+    num_snapshots = 2000 # 500 
     # =========================================================
     
     dir_1 = os.path.join(base_dir, folder_1)
@@ -85,8 +85,8 @@ def main():
         print(f"Error: Could not find any .npz files in {dir_2}")
         return
     
-    r_max = 0.5  # compute up to 5 sigma (since sigma=0.1)
-    bins = 50
+    r_max = 1.0  # compute up to 5 sigma (since sigma=0.1)
+    bins = 100
     box_size = 2.0
     sigma = 0.1
     
@@ -140,7 +140,7 @@ def main():
     
     save_dir = project_root / "results" / "spatial_data"
     save_dir.mkdir(parents=True, exist_ok=True)
-    plot_path = save_dir / "gr_comparison_all_trajs.png"
+    plot_path = save_dir / "gr_comparison_all_trajs_rmax.png"
     plt.savefig(plot_path, dpi=300)
     print(f"Successfully saved smoothed plot to: {plot_path}")
     

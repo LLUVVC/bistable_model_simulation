@@ -8,7 +8,7 @@ from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from scipy.stats import wasserstein_distance
 from datetime import datetime
-from scripts.runners.run_spatial import make_diff_func
+# from scripts.runners.run_spatial import make_diff_func
 
 import os
 from pathlib import Path
@@ -127,7 +127,10 @@ def plot_trajectories(trajectories, tau, textstr, fig_title, file_str, run_idx=0
         ax = axs[i]
         x_time = traj['timescale'] * tau
         y_x = traj['species_log']['X']
-        
+        # Check: are the trajectories sampling both states?
+
+        frac_low = np.mean(y_x < 150)  # fraction of time in low state
+        print(f"Traj {i}: {frac_low:.1%} low state, {1-frac_low:.1%} high state")
         ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
         # add a subtle shaded area under the curves
         ax.fill_between(x_time, y_x, color=color_x, step='post', alpha=0.1)
@@ -346,16 +349,16 @@ def plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, 
             counts_all[run_idx, j,:], _ = np.histogram(x0, bins=x_axis_divisions)
         
         subbox_trajs = []
-        for run_idx in range(num_run):
-            subbox_trajs_single = []
-            for i in range(num_division):
-                traj_dict = {
-                    'timescale': times, 
-                    'species_log': {'X': counts_all[run_idx,:,i]},
-                    'title': f'Division [{x_axis_divisions[i]:.1f}, {x_axis_divisions[i+1]:.1f})'
-                }
-                subbox_trajs_single.append(traj_dict)
-            subbox_trajs.append(subbox_trajs_single)
+    for run_idx in range(num_run):
+        subbox_trajs_single = []
+        for i in range(num_division):
+            traj_dict = {
+                'timescale': times, 
+                'species_log': {'X': counts_all[run_idx,:,i]},
+                'title': f'Division [{x_axis_divisions[i]:.1f}, {x_axis_divisions[i+1]:.1f})'
+            }
+            subbox_trajs_single.append(traj_dict)
+        subbox_trajs.append(subbox_trajs_single)
       
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir = f"{DATA_DIR}_subbox_analysis_{timestamp}"
@@ -366,7 +369,7 @@ def plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, 
 
         fig_title = f"Subbox Traj Run {run_idx}"
         plot_trajectories(subbox_trajs[run_idx], tau, textstr=textstr, fig_title=fig_title, 
-                          file_str=output_dir, run_idx=run_idx)
+                        file_str=output_dir, run_idx=run_idx)
     
     return counts_all, output_dir
 
@@ -437,7 +440,8 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
     for i in range(kappas.shape[1]):
         values_str = ", ".join([f"{x:.3f}" for x in kappas[:, i]])
         text_lines.append(rf"$\kappa_{i+1}$: {values_str}")
-
+    text_lines.append(rf"$D_X, D_{{X_2}}, D_A, D_B$: {metadata['D']}")
+    text_lines.append(rf"$\tau$: {metadata['timestep']}")
     textstr = '\n'.join(text_lines)
     fig.text(0.5, 0.02, textstr, fontsize=12, ha='center')
     # plt.subplots_adjust(bottom=0.15) # Add space at the bottom for your text
@@ -480,9 +484,9 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'homo_test'
+    filestr = 'homo_tf_24.0_D_1500.0' # 'homo_tf_24.0_D_1500.0'
 
-    slice_val = 50000
+    slice_val = 20000 # 10000 for tau=1e-6
                      
     plot_spatial(filestr, num_traj=100, slice_val=slice_val, num_div=2)
 

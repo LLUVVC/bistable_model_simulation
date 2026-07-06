@@ -300,7 +300,7 @@ def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
         
 
         
-        if i % 1000 == 0: # 10000 
+        if i % 10000 == 0: # 10000 
             ### Not sure if there would be enough data to draw the distribution of X in space
             ### if I only save it every 10000 steps.
             ### However the output data files would be crazily large if it's recorded at every time step
