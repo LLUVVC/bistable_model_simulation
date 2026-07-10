@@ -53,8 +53,8 @@ bistable_model_simulation/
 │   └── plotting/                          # Plotting scripts for figures
 │
 ├── notebooks/
-│   ├── 01_well_mixed_case_workflow.ipynb          # End-to-end well-mixed workflow
-│   ├── 02_spatial_case_workflow.ipynb             # End-to-end spatial workflow
+│   ├── 01_well_mixed_case_workflow.ipynb          # well-mixed data processing
+│   ├── 02_spatial_case_workflow.ipynb             # spatial data processing
 │   ├── 03_schloegl_model_wd_convergence.ipynb     # Wasserstein convergence study
 │   ├── 04_bifurcation_and_distribution_curve.ipynb # Bifurcation diagrams & sensitivity
 │   └── 05_model_description_analytical_curve.ipynb # Analytical curve & Model 2 predictions
@@ -91,11 +91,6 @@ Run a batch of tau-leaping trajectories for the full well-mixed model:
 python scripts/runners/run_well_mixed.py
 ```
 
-Or follow the end-to-end workflow in:
-```
-notebooks/01_well_mixed_case_workflow.ipynb
-```
-
 ### 2. Spatial simulation
 
 Run a batch of 3D particle-based trajectories:
@@ -108,11 +103,6 @@ For HPC/cluster batch submission:
 
 ```bash
 bash run_spatial_batch.sh
-```
-
-Or follow the end-to-end workflow in:
-```
-notebooks/02_spatial_case_workflow.ipynb
 ```
 
 ### 3. Model 2 — achieved rate computation
