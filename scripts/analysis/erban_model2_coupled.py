@@ -334,8 +334,8 @@ def main():
 
     if model1_kappa_known:
         
-        diffusion_list = [1500.0, 1500.0, 750.0, 750.0]
-        tau_list = [1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8]
+        diffusion_list = [3000,] # [1500.0, 1500.0, 750.0, 750.0]
+        tau_list = [5e-7,] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8]
         for i in range(len(tau_list)):
             tau = tau_list[i]
             diffusions = np.ones(4) * diffusion_list[i]
