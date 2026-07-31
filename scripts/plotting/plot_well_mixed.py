@@ -187,12 +187,13 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         macrorates_k = calculate_k_from_l(macrorates)
         p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
         W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
+        print(f"the wasserstein distance is {W_d}")
         ax.bar(hist_bin, density_hist, width=bin_width, 
                color='#a9cce3', alpha=0.6, label='Simulation') # '#d5d8dc'# edgecolor='white',
         ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=3.5, 
                 zorder=3, label='KDE') # '#2e4053'
         ax.plot(p_states, stat_dist, color='#e74c3c', 
-                linewidth=2.5, zorder=4, label='Analytical') # '#f39c12' # linestyle='--'
+                linewidth=2.5, zorder=4, label='Steady-state solution') # '#f39c12' # linestyle='--'
         
         ####### skip the two vertical lines for the two analytical bistable states
 

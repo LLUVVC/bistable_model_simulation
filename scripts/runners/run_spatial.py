@@ -254,7 +254,7 @@ def main():
     
     
     ###### ---------- decide if kappa is homogeneous in space -----------
-    hetero = True # True or False
+    hetero = False # True or False
     if hetero:
         state = "hetero"
         # diff_str = 'anisotropic'
@@ -271,8 +271,9 @@ def main():
         # diff_str = 'isotropic'
         diff_scale = 1500.
         diffusions = np.array((DX, DX2, DA, DB)) * diff_scale
-        diffusions = np.tile(np.array((DX, DX2, DA, DB)),(3,1))
+        diffusions = np.tile(diffusions,(3,1)) # np.array((DX, DX2, DA, DB))
         diffusions = diffusions.T
+        print(f"Test: diffusions is:{diffusions}.")
 
     
     # diffusions = np.array((100, 1500, 100, 100))
@@ -286,7 +287,7 @@ def main():
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------
     simulation_is_feasible = True if np.sqrt((2*diff_max)*2*tau) < np.min(sigmas) else False
-    file_str = f"{state}_kp_tf_{t_f}_{diff_max}_tau_{tau}"
+    file_str = f"updated_{state}_tf_{t_f}_{diff_max}_tau_{tau}"
     DATA_DIR = get_data_dir(file_str)
 
     if simulation_is_feasible:

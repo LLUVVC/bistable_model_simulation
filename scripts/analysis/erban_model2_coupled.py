@@ -82,6 +82,8 @@ def solve_decoupled(gamma, P_lambda, is_homoreaction=True, S=10.0, N1=4000, N2=2
     Uses delta = 1 - g to bypass catastrophic cancellation and tail integrals.
     """
     r_grid = build_grid(N1, N2, S)
+    print(r_grid[0])
+    print(r_grid[-1])
     N = N1 + N2
 
     M = np.zeros((N, N))
@@ -105,7 +107,12 @@ def solve_decoupled(gamma, P_lambda, is_homoreaction=True, S=10.0, N1=4000, N2=2
     integral = 0.0
     for j in range(N1):
         w_j = 1.0 / N1
-        integral += 4 * np.pi * (r_grid[j] ** 2) * (1.0 - delta[j]) * w_j
+        r_prev = r_grid[j] - w_j
+        dV_j = 4 * np.pi * r_grid[j] ** 2 * w_j
+        # dV_j = 4 * np.pi * r_prev ** 2 * w_j
+        # dV_j = (4.0 / 3.0) * np.pi * (r_grid[j]**3 - r_prev**3)
+        integral += (1.0 - delta[j]) * dV_j
+        # integral += 4 * np.pi * (r_grid[j] ** 2) * (1.0 - delta[j]) * w_j
 
     if is_homoreaction:
         kappa_val = P_lambda * integral / 2.0
@@ -153,7 +160,10 @@ def solve_coupled_exact_2(gamma, P_lambda_plus, P_lambda_minus, S=10.0, N1=4000,
     int_X = 0.0
     for j in range(N1):
         w_j = 1.0 / N1
-        dV_j = 4 * np.pi * r_grid[j] ** 2 * w_j
+        dV_j = 4 * np.pi * r_grid[j] ** 2 * w_j # the outer shell
+        r_prev = r_grid[j] - w_j
+        # dV_j = 4 * np.pi * r_prev ** 2 * w_j # the inner shell
+        # dV_j = (4.0 / 3.0) * np.pi * (r_grid[j]**3 - r_prev**3) # the shell volume
         # forward net element: P+ - (P+ + P-) * delta_A
         int_A += (P_lambda_plus - P_total * delta_A[j]) * dV_j
         # backward net element: P- - (P+ + P-) * phi_X
@@ -334,12 +344,13 @@ def main():
 
     if model1_kappa_known:
         
-        diffusion_list = [3000,] # [1500.0, 1500.0, 750.0, 750.0]
-        tau_list = [5e-7,] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8]
+        diffusion_list = [6000, 12000, 24000,] # [1500.0, 1500.0, 750.0, 750.0]
+        tau_list = [1e-7, 1e-8, 1e-9,] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8]
         for i in range(len(tau_list)):
             tau = tau_list[i]
-            diffusions = np.ones(4) * diffusion_list[i]
-            micro_to_macro(diffusions, tau, N1=5000, N2=1000)
+            for j in range(len(diffusion_list)):
+                diffusions = np.ones(4) * diffusion_list[j]
+                micro_to_macro(diffusions, tau, N1=20000, N2=5000)
 
     ## the following timestep is for cluster running
     

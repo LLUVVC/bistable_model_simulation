@@ -85,7 +85,7 @@ def main():
         print(f"Error: Could not find any .npz files in {dir_2}")
         return
     
-    r_max = 1.0  # compute up to 5 sigma (since sigma=0.1)
+    r_max = .2  # compute up to 5 sigma (since sigma=0.1)
     bins = 100
     box_size = 2.0
     sigma = 0.1

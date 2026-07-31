@@ -258,7 +258,7 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
     ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=2.5, 
             zorder=3, label='KDE')
     ax.plot(p_states, stat_dist, color='#e74c3c', linestyle='--', 
-            linewidth=2, zorder=4, label='Analytical')
+            linewidth=2, zorder=4, label='Steady-state solution')
     
 
     ax.set_title(f'Combined trajectories: {num_traj}')
@@ -486,7 +486,7 @@ def main():
 
     filestr = 'homo_tf_24.0_D_1500.0' # 'homo_tf_24.0_D_1500.0'
 
-    slice_val = 20000 # 10000 for tau=1e-6
+    slice_val = 10000 # 10000 for tau=1e-6
                      
     plot_spatial(filestr, num_traj=100, slice_val=slice_val, num_div=2)
 

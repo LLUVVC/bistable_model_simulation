@@ -179,6 +179,90 @@ def run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
     return pos_x, pos_x2, pos_a, pos_b
 
 
+@njit
+def update_run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
+                       sigmas, kappas, diffusions, h, box_shape,
+                       num_a_target, num_b_target):
+    
+    '''
+    use Strang splitting
+    Bruno Sportisse: An Analysis of Operator Splitting Techniques in the Stiff Case
+    -> slow reaction first then fast reactions
+
+    UPDATE: we put the diffusion in the middle, flanked by the reactions (in the original order).
+    however, now the dimerisation step is exerted half-steps, too.
+    '''
+    half_dt = h * 0.5
+    full_dt = h
+    
+    # === PART 1: SLOW (R2, R3) ===
+    
+    # --- R2 Forward: X2 + A -> X2 + X ---
+    # pos_a is reduced, new_x_from_a created
+    pos_a, pos_x = reaction_hetero_replacement_numba(pos_x2, pos_a, pos_x, sigmas[2], kappas[2], half_dt, box_shape)
+    pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target)
+   
+
+    # --- R2 Backward: X2 + X -> X2 + A ---
+    # pos_x is reduced, new_a_from_x created
+    pos_x, pos_a = reaction_hetero_replacement_numba(pos_x2, pos_x, pos_a, sigmas[3], kappas[3], half_dt, box_shape)
+    pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target) # We just discard excess A here effectively via maintain
+    
+    # --- R3 Forward: B -> X ---
+    pos_b, pos_x = reaction_unimolecular_replacement_numba(pos_b, pos_x, kappas[4], half_dt)
+    pos_b = maintain_bath_numba(pos_b, box_shape, num_b_target)
+
+    # --- R3 Backward: X -> B ---
+    pos_x, pos_b = reaction_unimolecular_replacement_numba(pos_x, pos_b, kappas[5], half_dt)
+    pos_b = maintain_bath_numba(pos_b, box_shape, num_b_target)
+    
+    
+    # === PART 2: FAST (R1) ===
+    
+    # --- R1 Forward: X + X -> X2 ---
+    pos_x, pos_x2 = reaction_R1_forward_numba(pos_x, pos_x2, sigmas[0], kappas[0], half_dt, box_shape)
+    # --- R1 Backward: X2 -> X + X ---
+    pos_x, pos_x2 = reaction_R1_backward_numba(pos_x, pos_x2, sigmas[1], kappas[1], half_dt, box_shape)
+
+
+
+    # === PART 3: DIFFUSION & PBC) ===
+    # === actually the PBC is applied at every step when necessary ===
+    pos_x = homo_diffusion_periodic_step_numba(pos_x, diffusions[0], full_dt, box_shape)
+    pos_x2 = homo_diffusion_periodic_step_numba(pos_x2, diffusions[1], full_dt, box_shape)
+    pos_a = homo_diffusion_periodic_step_numba(pos_a, diffusions[2], full_dt, box_shape)
+    pos_b = homo_diffusion_periodic_step_numba(pos_b, diffusions[3], full_dt, box_shape)
+
+
+    # === PART 4: FAST (R1) ===
+    # --- R1 Backward: X2 -> X + X ---
+    pos_x, pos_x2 = reaction_R1_backward_numba(pos_x, pos_x2, sigmas[1], kappas[1], half_dt, box_shape)
+    # --- R1 Forward: X + X -> X2 ---
+    pos_x, pos_x2 = reaction_R1_forward_numba(pos_x, pos_x2, sigmas[0], kappas[0], half_dt, box_shape)
+    
+
+    # === PART 5: SLOW REPEAT (Reversed Order) ===
+    
+    # --- R3 Backward: X -> B ---
+    pos_x, pos_b = reaction_unimolecular_replacement_numba(pos_x, pos_b, kappas[5], half_dt)
+    pos_b = maintain_bath_numba(pos_b, box_shape, num_b_target)
+
+    # --- R3 Forward: B -> X ---
+    pos_b, pos_x = reaction_unimolecular_replacement_numba(pos_b, pos_x, kappas[4], half_dt)
+    pos_b = maintain_bath_numba(pos_b, box_shape, num_b_target)
+
+    # --- R2 Backward: X2 + X -> X2 + A ---
+    # pos_x is reduced, new_a_from_x created
+    pos_x, pos_a = reaction_hetero_replacement_numba(pos_x2, pos_x, pos_a, sigmas[3], kappas[3], half_dt, box_shape)
+    pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target) 
+
+    # --- R2 Forward: X2 + A -> X2 + X ---
+    # pos_a is reduced, new_x_from_a created
+    pos_a, pos_x = reaction_hetero_replacement_numba(pos_x2, pos_a, pos_x, sigmas[2], kappas[2], half_dt, box_shape)
+    pos_a = maintain_bath_numba(pos_a, box_shape, num_a_target)
+   
+    return pos_x, pos_x2, pos_a, pos_b
+
 # ==========================================
 #      THE COMPILED STEP WRAPPER
 # ==========================================
@@ -201,6 +285,17 @@ def homo_d_run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas,
 
     return pos_x, pos_x2, pos_a, pos_b
 
+@njit
+def update_homo_d_run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
+                            diffusions, h, box_shape, num_a_target, num_b_target):
+    # ========================================
+    #       Reaction + Diffusion + PBC
+    # ========================================
+    pos_x, pos_x2, pos_a, pos_b = update_run_one_step_numba(pos_x, pos_x2, pos_a, pos_b,
+                                                     sigmas, kappas, diffusions, h, box_shape, 
+                                                     num_a_target, num_b_target)
+
+    return pos_x, pos_x2, pos_a, pos_b
 
 @njit
 def hetero_d_run_single_step_compiled(pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
@@ -262,7 +357,11 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
     x_pos_log.pop()
     x2_pos_log.append(pos_x2.copy()) 
     x2_pos_log.pop()
-
+    # ============================================================
+    # ============================================================
+    IF_UPDATE = True ### IMPORTANT ###
+    # ============================================================
+    # ============================================================
     if callable(diffusions): # diffusion is a function of X-axis
         print("Test: heterogeneous diffusion.")
         with ProgressBar(total=t_f_steps) as progress:
@@ -274,12 +373,22 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
     
     else: # diffusion is constant in space
         print("Test: homogeneous diffusion.")
-        with ProgressBar(total=t_f_steps) as progress:
-            _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
-                                sigmas, kappas, diffusions, h, box_shape,
-                                num_a_target, num_b_target,
-                                xandx2_log, x_pos_log, x2_pos_log, progress)
-        return xandx2_log, list(x_pos_log), list(x2_pos_log)
+        if IF_UPDATE:
+            print("Test: use the updated simulation, with diffusion in the middle of reactions.")
+            with ProgressBar(total=t_f_steps) as progress:
+                _update_simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                                    sigmas, kappas, diffusions, h, box_shape,
+                                    num_a_target, num_b_target,
+                                    xandx2_log, x_pos_log, x2_pos_log, progress)
+            return xandx2_log, list(x_pos_log), list(x2_pos_log)
+        else:
+            print("Test: use the original simulation, with diffusion after all the reactions.")
+            with ProgressBar(total=t_f_steps) as progress:
+                _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                                    sigmas, kappas, diffusions, h, box_shape,
+                                    num_a_target, num_b_target,
+                                    xandx2_log, x_pos_log, x2_pos_log, progress)
+            return xandx2_log, list(x_pos_log), list(x2_pos_log)
         # return ..., ..., None
 
 # Inner compiled function
@@ -310,6 +419,32 @@ def _simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
         if i % 10000 == 0:
             progress.update(10000)
 
+@njit
+def _update_simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
+                         sigmas, kappas, diffusions, h, box_shape,
+                         num_a_target, num_b_target,
+                         xandx2_log, x_pos_log, x2_pos_log, progress):
+    
+    for i in range(t_f_steps):              # Numba compiled loop
+        pos_x, pos_x2, pos_a, pos_b = update_homo_d_run_single_step_compiled(
+            pos_x, pos_x2, pos_a, pos_b,
+            sigmas, kappas, diffusions, h, box_shape,
+            num_a_target, num_b_target)
+        
+        xandx2_log[i, 0] = len(pos_x)
+        xandx2_log[i, 1] = len(pos_x2)
+        
+
+        
+        if i % 10000 == 0: # 10000 
+            ### Not sure if there would be enough data to draw the distribution of X in space
+            ### if I only save it every 10000 steps.
+            ### However the output data files would be crazily large if it's recorded at every time step
+            x_pos_log.append(pos_x.copy())
+            # x2_pos_log.append(pos_x2.copy())
+            
+        if i % 10000 == 0:
+            progress.update(10000)
 
 @njit
 def _simul_run_compiled_hetero(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
