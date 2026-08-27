@@ -1,6 +1,6 @@
 # Bistable Reaction Systems: From Well-Mixed to Spatial Dynamics
 
-Simulation code for my master's thesis *"Bridging Rates Across Scales in Bistable Reaction Systems: From Well-Mixed to Spatial Dynamics"*, and a potential paper, Freie Universität Berlin / Zuse Institute Berlin (ZIB), 2026.
+Simulation code for my master's thesis *"Bridging Rates Across Scales in Bistable Reaction Systems: From Well-Mixed to Spatial Dynamics"*, and an upcoming paper, Freie Universität Berlin / Zuse Institute Berlin (ZIB), 2026.
 
 Supervisor: Mauricio del Razo
 

@@ -77,7 +77,14 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
 
     ncols = 2
     nrows = int(np.ceil(num_traj / ncols))
-
+    plt.rcParams.update({
+        'font.size': 18,          # General font size
+        'axes.titlesize': 22,     # Subtitles & top case labels
+        'axes.labelsize': 20,     # Axis labels (X and Y labels)
+        'xtick.labelsize': 18,    # X-axis tick numbers
+        'ytick.labelsize': 18,    # Y-axis tick numbers
+        'legend.fontsize': 18     # Legend font size
+    })
     fig_dist, ax = plt.subplots(figsize=(12, 6))
     header_height = 2.0  # Reserve exactly 2 inches for the title and text box
     fig_height = 4 * nrows + header_height

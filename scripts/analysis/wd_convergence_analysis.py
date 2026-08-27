@@ -38,7 +38,6 @@ from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full
 from scipy.stats import wasserstein_distance
 from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
-from scipy.stats import wasserstein_distance
 from scripts.analysis.analyze_distributions import get_pretty_upper_bound, kde_sk
 from joblib import Parallel, delayed
 
@@ -241,10 +240,10 @@ def multi_group_wd_comparison(resolution, n_iterations=100, base_dir='.'):
     DATA_DIR = get_data_dir(filestr)
     os.makedirs(DATA_DIR, exist_ok=True)
     
-    filename_wd = f"wd_comparison_iter_{n_iterations}_{macrorates}.png" # Save as PDF!
+    filename_wd = f"wd_comparison_iter_{n_iterations}_{macrorates}.pdf" # Save as PDF!
     output_plot_path_wd = os.path.join(DATA_DIR, filename_wd)
     fig.savefig(output_plot_path_wd)
-    # fig.savefig(output_plot_path_wd, dpi=300, bbox_inches='tight')
+    fig.savefig(output_plot_path_wd, dpi=300, bbox_inches='tight')
     plt.show()    
 
 def main():

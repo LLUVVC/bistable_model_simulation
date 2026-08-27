@@ -209,7 +209,7 @@ def micro_to_macro(diffusions, tau, N1=4000, N2=2000): # tau_list = [2e-6,]#2e-7
     gamma_2 = np.sqrt(2 * D_tot * 0.5 * tau) / rho
     gamma_1 = np.sqrt(2 * (diffusions[0]+ diffusions[0]) * tau) /rho
     print(f"gamma equals to {gamma_1}.")
-    P_1  = 1.0 - np.exp(-kappa_1 * tau)
+    P_1  = 1.0 - np.exp(-kappa_1 * 0.5 * tau) # 1.0 - np.exp(-kappa_1 * tau)
     P_2p = 1.0 - np.exp(-kappa_2p * 0.5 * tau)
     P_2m = 1.0 - np.exp(-kappa_2m * 0.5 * tau)
 
@@ -221,7 +221,7 @@ def micro_to_macro(diffusions, tau, N1=4000, N2=2000): # tau_list = [2e-6,]#2e-7
     t0 = time.time()
     print(f"tau = {tau:.1e},  gamma_1 = {gamma_1:.4f}")
     _, _, kd1 = solve_decoupled(gamma_1, P_1, is_homoreaction=True, N1=N1, N2=N2)
-    k1 = kd1 * rho**3 / tau
+    k1 = 2 * kd1 * rho**3 / tau # kd1 * rho**3 / tau
     print(f"  R1 (X+X→X2):  k_macro = {k1:.6f}  [{time.time()-t0:.1f}s]")
     # ── R2 COUPLED EXACT ──
     t0 = time.time()
@@ -344,13 +344,13 @@ def main():
 
     if model1_kappa_known:
         
-        diffusion_list = [6000, 12000, 24000,] # [1500.0, 1500.0, 750.0, 750.0]
-        tau_list = [1e-7, 1e-8, 1e-9,] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8]
+        diffusion_list = [6000, ] # [1500.0, 1500.0, 750.0, 750.0] 12000, 24000,
+        tau_list = [1e-7, ] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8] # 1e-7, 1e-8, 
         for i in range(len(tau_list)):
             tau = tau_list[i]
             for j in range(len(diffusion_list)):
                 diffusions = np.ones(4) * diffusion_list[j]
-                micro_to_macro(diffusions, tau, N1=20000, N2=5000)
+                micro_to_macro(diffusions, tau, N1=5000, N2=1000)
 
     ## the following timestep is for cluster running
     

@@ -214,24 +214,24 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
         combined_data_X = combined_data['X']
         combined_data_X2 = combined_data.get('X2', np.array([]))
         
-    # print the X and X2 statistics
-    if len(combined_data_X2) > 0:
-        # Filter out moments where X is 0 to avoid dividing by zero
-        valid_idx = combined_data_X > 0 # 135
-        safe_X = combined_data_X[valid_idx]
-        safe_X2 = combined_data_X2[valid_idx]
+    # # print the X and X2 statistics
+    # if len(combined_data_X2) > 0:
+    #     # Filter out moments where X is 0 to avoid dividing by zero
+    #     valid_idx = combined_data_X > 0 # 135
+    #     safe_X = combined_data_X[valid_idx]
+    #     safe_X2 = combined_data_X2[valid_idx]
         
-        # Calculate ratio: (X2 * Vol) / (X^2)
-        ratio_1 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
-        print(f"----- Test: the ratio is {ratio_1:.3f} × 10⁻³ -----")
-        k_eff = np.mean(safe_X2*8*2/(safe_X*(safe_X-1)))
-        print(f"----- Test: the ratio is {k_eff:.7f}  -----")
-        # valid_idx = (combined_data_X < 135) & (combined_data_X > 0)
-        # safe_X = combined_data_X[valid_idx]
-        # safe_X2 = combined_data_X2[valid_idx]
-        # # Calculate ratio: (X2 * Vol) / (X^2)
-        # ratio_2 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
-        # print(f"----- Test: the low ratio is {ratio_2:.3f} \times 10^{{{-3}}} -----")
+    #     # Calculate ratio: (X2 * Vol) / (X^2)
+    #     ratio_1 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
+    #     print(f"----- Test: the ratio is {ratio_1:.3f} × 10⁻³ -----")
+    #     k_eff = np.mean(safe_X2*8*2/(safe_X*(safe_X-1)))
+    #     print(f"----- Test: the ratio is {k_eff:.7f}  -----")
+    #     # valid_idx = (combined_data_X < 135) & (combined_data_X > 0)
+    #     # safe_X = combined_data_X[valid_idx]
+    #     # safe_X2 = combined_data_X2[valid_idx]
+    #     # # Calculate ratio: (X2 * Vol) / (X^2)
+    #     # ratio_2 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
+    #     # print(f"----- Test: the low ratio is {ratio_2:.3f} \times 10^{{{-3}}} -----")
 
     upper_bound = get_pretty_upper_bound(combined_data_X)
     print(f"The calculated upper bound for #X is {upper_bound}")
@@ -273,12 +273,20 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
 
     exponent = int(np.floor(np.log10(tau)))
     base = tau / 10**exponent
-    
+    print(D)
+    if isinstance(D, (list, tuple, np.ndarray)):
+        D_print = D[0]
+    else:
+        D_print = D
+    # D_print = np.atleast_1d(D)[0]
+    print(D_print)
+    print(sigma)
+
     textstr = '\n'.join((
         rf"$\mathbf{{Rates_{{macro}}}}$: {format_rate_list(macrorates)}",
         rf"$\mathbf{{Rates_{{micro}}}}$: {format_rate_list(microrates.reshape(-1))}",
-        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad BC: Periodic \quad | \quad K_eff: {k_eff:.7f}$",
-        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f} \quad | \quad Ratio: {ratio_1:.3f} \times 10^{{{-3}}}$" 
+        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D_print:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad BC: Periodic $",
+        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
     ))
 
     props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
@@ -484,11 +492,11 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'homo_tf_24.0_D_1500.0' # 'homo_tf_24.0_D_1500.0'
+    filestr = 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
 
     slice_val = 10000 # 10000 for tau=1e-6
                      
-    plot_spatial(filestr, num_traj=100, slice_val=slice_val, num_div=2)
+    plot_spatial(filestr, num_traj=2, slice_val=slice_val, num_div=2)
 
 
 
