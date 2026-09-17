@@ -77,6 +77,9 @@ def reaction_hetero_replacement_numba(pos_catalyst, pos_substrate, pos_product, 
     (Used for R2: X2 + A -> X2 + X and X2 + X -> X2 + A)
     Returns: Updated pos_substrate (removed), List of new product positions
     """
+    # print("test: after the kappa is passed down to the replacement function it reads")
+    # for i in range(len(kappa)):
+    #     print(kappa[i])
     n_cat = len(pos_catalyst)
     n_sub = len(pos_substrate)
     if n_cat == 0 or n_sub == 0:
@@ -375,6 +378,8 @@ def simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
         print("Test: homogeneous diffusion.")
         if IF_UPDATE:
             print("Test: use the updated simulation, with diffusion in the middle of reactions.")
+            # for i in range(len(kappas)):
+            #         print(kappas[i])
             with ProgressBar(total=t_f_steps) as progress:
                 _update_simul_run_compiled_homo(t_f_steps, pos_x, pos_x2, pos_a, pos_b,
                                     sigmas, kappas, diffusions, h, box_shape,

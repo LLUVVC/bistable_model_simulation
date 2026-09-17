@@ -132,7 +132,9 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
     candidates = np.argwhere(dist_sq <= sigma_sq)
     np.random.shuffle(candidates)
 
-
+    ###======= TEST 
+    # for i in range(len(kappa)):
+    #     print(kappa[i])
     # Iterate through the LIST of close pairs
     for k in range(len(candidates)):#
         i = candidates[k, 0]
@@ -144,6 +146,9 @@ def bimolecular_hetero_candidates_update(pos_r1, pos_r2, sigma, kappa, h, box_sh
         
         midpoint_x = 0.5 * (pos_r1[i,0] + pos_r2[j,0])
         local_kappa = get_kappa(midpoint_x, kappa, box_shape[0]) # pass down the corresponding function
+        ###======= TEST 
+        # print("test: the current point position is", midpoint_x)
+        # print("test: the current point kappa is", local_kappa)
         prob = 1.0 - np.exp(-local_kappa * h)
 
         # Roll the dice
@@ -184,7 +189,6 @@ def bimolecular_homo_candidates_update(pos_r, sigma, kappa, h, box_shape):
     mask = np.zeros(n, dtype=np.bool_)
     react_i = []
     react_j = []
-
     # Iterate through the LIST of close pairs
     for k in range(len(candidates)):
         i = candidates[k, 0]

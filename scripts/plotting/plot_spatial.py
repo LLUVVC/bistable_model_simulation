@@ -492,7 +492,7 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
+    filestr = 'hetero_kp_tf_12.0_150.0_tau_1e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
 
     slice_val = 10000 # 10000 for tau=1e-6
                      

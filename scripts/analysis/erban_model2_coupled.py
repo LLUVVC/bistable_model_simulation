@@ -184,7 +184,7 @@ def micro_to_macro(diffusions, tau, N1=4000, N2=2000): # tau_list = [2e-6,]#2e-7
     
     print(f"timestep = {tau}")
     rho = 0.1       # sigma/rho (reaction radius)
-    ls = np.array((1.5, 1500., 150., 25., 5.75, 25.))
+    ls = np.array((1.5, 1500., 155., 25., 5.75, 25.)) # remember to change it back to 150.
     sigmas = np.ones(4)*rho
     kappas = calculate_kappas(ls, diffusions[2], diffusions[0], diffusions[1], sigmas)
     D_tot = diffusions[1]+diffusions[0] # 2 * D   # D_X2 + D_A = D_X2 + D_X = 3000
@@ -344,13 +344,13 @@ def main():
 
     if model1_kappa_known:
         
-        diffusion_list = [6000, ] # [1500.0, 1500.0, 750.0, 750.0] 12000, 24000,
-        tau_list = [1e-7, ] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8] # 1e-7, 1e-8, 
+        diffusion_list = [750, ] # [1500.0, 1500.0, 750.0, 750.0] 12000, 24000,
+        tau_list = [2e-6, ] #[1e-6, 2e-7, 2e-6, 1e-6]#[1e-6, 5e-6, 2e-7,1e-7, 5e-8] # 1e-7, 1e-8, 
         for i in range(len(tau_list)):
             tau = tau_list[i]
             for j in range(len(diffusion_list)):
                 diffusions = np.ones(4) * diffusion_list[j]
-                micro_to_macro(diffusions, tau, N1=5000, N2=1000)
+                micro_to_macro(diffusions, tau, N1=5000, N2=2000)
 
     ## the following timestep is for cluster running
     

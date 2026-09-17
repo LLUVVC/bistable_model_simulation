@@ -16,6 +16,19 @@ import math
 from numba import njit
 import time
 
+# Compiled ONCE when the script loads, not once per simulation run
+def make_diff_func(p, q, box_shape_0):
+    @njit
+    def diff_func(pos):
+        # D(x) = -p * cos(omega * x) + q
+        # omega = (2*pi)/box_shape_0 
+        omega = 2 * math.pi / box_shape_0
+        D = -p * math.cos(omega * pos) + q
+        # Derivative: dD/dx = omega* p * sin(omega * x)
+        dD_dx = omega * p * math.sin(omega * pos)
+        return D, dD_dx 
+    return diff_func
+    
 from simulation.solvers.rate_conversions import calculate_kappas, build_piecewise_kappa_table
 from simulation.solvers.spatial_process import simul_initialize, simul_run
 from pathlib import Path
@@ -75,7 +88,8 @@ def initialization(box_shape, keq, c_a, c_b):
 def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape, result_dir, p, q, hetero=False):
     
     keq = ls[0]/ls[1]
-    DA, DX, DX2 = diffusions[1,2], diffusions[1,0], diffusions[1,1]
+    print(diffusions)
+    DA, DX, DX2 = diffusions[0,2], diffusions[2,2], diffusions[3,2]
 
     print(f"initializing the simulation box...")
 
@@ -132,12 +146,19 @@ def run_save_spatial(num, t_f, tau, ls, sigmas, diffusions, c_a, c_b, box_shape,
             -> D(x) = -p * cos(omega*x) + q, where p, q are constants.
             Note: D(x) has to be @njit
             """
-            
+            ls_1 = ls.copy()
+            ls_1[2] = 10.
             ls_2 = ls.copy()
-            ls_2[2] = 152
-            ls_list = [ls, ls_2]
+            ls_2[2] = 50.
+            ls_3 = ls.copy()
+            ls_3[2] = 250.
+            ls_4 = ls.copy()
+            ls_4[2] = 1250.
+            ls_list = [ls_1, ls_2, ls_3, ls_4]
+            
             # 1. build the table
             kappas = build_piecewise_kappa_table(ls_list, DA, DX, DX2, sigmas) 
+            print(kappas)
             num_log, pos_x_log, pos_x2_log = simul_run(t_f_steps, pos_x, pos_x2, pos_a, pos_b, sigmas, kappas, 
                                            diffusions, tau, box_shape, num_a_target=n_a, num_b_target=n_b)
             time_log = np.arange(t_f_steps)
@@ -257,11 +278,11 @@ def main():
     
     
     ###### ---------- decide if kappa is homogeneous in space -----------
-    hetero = False # True or False
+    hetero = True # True or False
     if hetero:
         state = "hetero"
-        # diff_str = 'anisotropic'
-        diff_scale_y_z = 1500. 
+        # diff_str =  "anisotropic" # or function of space?
+        diff_scale_y_z = 750. 
         diff_scale_x = 10.
         diffusions = np.tile(np.array((DX, DX2, DA, DB)),(3,1))
         diffusions = diffusions.T
@@ -272,7 +293,7 @@ def main():
     else:
         state = "homo"
         # diff_str = 'isotropic'
-        diff_scale = 1500.
+        diff_scale = 750.
         diffusions = np.array((DX, DX2, DA, DB)) * diff_scale
         diffusions = np.tile(diffusions,(3,1)) # np.array((DX, DX2, DA, DB))
         diffusions = diffusions.T
@@ -286,7 +307,7 @@ def main():
 
     num_run = 1
     t_f = .1 # 20.
-    tau = 1e-6 # 1e-6
+    tau = 2e-6 # 1e-6
     
     ###### ---------- check if the timestep is small enough for the Diffusion setup -----------
     simulation_is_feasible = True if np.sqrt((2*diff_max)*2*tau) < np.min(sigmas) else False
@@ -301,21 +322,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""
-
-# Compiled ONCE when the script loads, not once per simulation run
-def make_diff_func(p, q, box_shape_0):
-    @njit
-    def diff_func(pos):
-        # D(x) = -p * cos(omega * x) + q
-        # omega = (2*pi)/box_shape_0 
-        omega = 2 * math.pi / box_shape_0
-        D = -p * math.cos(omega * pos) + q
-        # Derivative: dD/dx = omega* p * sin(omega * x)
-        dD_dx = omega * p * math.sin(omega * pos)
-        return D, dD_dx 
-    return diff_func
-    
-    """
