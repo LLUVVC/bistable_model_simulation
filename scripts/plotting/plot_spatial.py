@@ -5,7 +5,7 @@ import random
 from scripts.analysis.data_loader import load_spatial_full_data
 from scripts.analysis.analyze_distributions import find_the_best_bw, hist_np, kde_sk, get_pretty_upper_bound
 from simulation.models.analytical_curve import get_analytical_curve
-from simulation.solvers.rate_conversions import calculate_k_from_l
+from simulation.solvers.rate_conversions import calculate_k_from_l, calculate_l2_rates, l1_plus_formula
 from scipy.stats import wasserstein_distance
 from datetime import datetime
 # from scripts.runners.run_spatial import make_diff_func
@@ -396,24 +396,22 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
     counts_all = counts_all.reshape(-1,num_divisions)
 
     kappas = metadata['microrates']
-    print(kappas)
     box_shape = metadata['box_shape']
-    # fig, ax = plt.subplots(figsize=(10,8), subplot_kw={'projection': '3d'})
     fig = plt.figure(figsize=(16, 8))
     ax = fig.add_subplot(1, 2, 1, projection='3d')
     ax_2d = fig.add_subplot(1, 2, 2)
 
     dist_plot_pad = 0.5
 
-    # for different diffusions
-    # x_axis_divisions = np.linspace(0, box_shape[0], num_divisions+1)
-    # diff_func = make_diff_func(p, q, box_shape[0])
-    # find min and max D in each division
-    # diff_ranges = []
-    # for i in range(num_divisions):
-    #     dense_x = np.linspace(x_axis_divisions[i], x_axis_divisions[i+1], 100)
-    #     dense_D = np.array([diff_func(x)[0] for x in dense_x])
-    #     diff_ranges.append((np.min(dense_D), np.max(dense_D)))
+    ## for different diffusions
+    ## x_axis_divisions = np.linspace(0, box_shape[0], num_divisions+1)
+    ## diff_func = make_diff_func(p, q, box_shape[0])
+    ## find min and max D in each division
+    ## diff_ranges = []
+    ## for i in range(num_divisions):
+    ##     dense_x = np.linspace(x_axis_divisions[i], x_axis_divisions[i+1], 100)
+    ##     dense_D = np.array([diff_func(x)[0] for x in dense_x])
+    ##     diff_ranges.append((np.min(dense_D), np.max(dense_D)))
     
 
     colors = ['#4A90E2', '#F5A623', '#7ED321', '#D0021B', '#9013FE']
@@ -426,8 +424,11 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
     
     upper_bound = get_pretty_upper_bound(counts_all.reshape(-1,1)) # data from the highest diffusion division
     print(f"The calculated upper bound for #X is {upper_bound}")
-    # p_states, stat_dist = get_analytical_curve(upper_bound, k, a, b, vol)
 
+    x_axis_boundaries = np.linspace(0, box_shape[0], num_divisions+1)
+    x_labels = [f"[{x_axis_boundaries[i]:.1f}, {x_axis_boundaries[i+1]:.1f})" 
+                for i in range(num_divisions)]
+    
     for i in range(num_divisions):
         raw_data = counts_all[:, i]
 
@@ -435,56 +436,57 @@ def plot_subbox_distributions(filestr, counts_all, metadata, bin_width=2.):
         avg_count = np.mean(raw_data)
 
         hist_bin, density_hist = hist_np(raw_data, upper_bound, bin_width)
-        # print(f"Test: for the round {i}, the sum of density hist is {np.sum(density_hist*bin_width)}")
 
-        label_str = f"kappa_group: {i} | Avg X: {avg_count:.1f}" # if p else ""
+        label_str = f"Region {x_labels[i]} | Avg X: {avg_count:.1f}" # if p else ""
         ax.bar(hist_bin, density_hist, zs=num_divisions-i-dist_plot_pad, zdir='x', width=bin_width, color=colors[i], 
                edgecolor='white', linewidth=0.3, alpha=0.85, label=label_str)
 
         ax_2d.step(hist_bin, density_hist, where='mid', color=colors[i], 
                    linewidth=linewidth_list[i], alpha=0.85, label=label_str)
-    
+        
+    diff = metadata['D']
+    sigma = metadata['sigma']
     text_lines = []
     for i in range(kappas.shape[1]):
-        values_str = ", ".join([f"{x:.3f}" for x in kappas[:, i]])
-        text_lines.append(rf"$\kappa_{i+1}$: {values_str}")
-    text_lines.append(rf"$D_X, D_{{X_2}}, D_A, D_B$: {metadata['D']}")
-    text_lines.append(rf"$\tau$: {metadata['timestep']}")
+        ls = np.array((1.5, 1500., 150., 25., 5.75, 25.))
+        ls[2], ls[3] = calculate_l2_rates(kappas[2,i], kappas[3,i], diff[-1], diff[-1], diff[-1], sigma_3=sigma) 
+        ls[0] = l1_plus_formula(kappas[0,i], diff[-1], sigma)
+        values_str = ", ".join([f"{x:.2f}" for x in ls]) # kappas[:, i]
+        text_lines.append(rf"Region {x_labels[i]}: {values_str}") # $\ell_{i+1}$
+    text_lines.append(rf"$D_x, D_y, D_z$: {diff} | $\tau$: {metadata['timestep']} | t_f: {metadata['timespan']}")
     textstr = '\n'.join(text_lines)
-    fig.text(0.5, 0.02, textstr, fontsize=12, ha='center')
-    # plt.subplots_adjust(bottom=0.15) # Add space at the bottom for your text
-    ax.set_xlabel('Spatial Division', labelpad=10)
-    ax.set_ylabel('Particle Count', labelpad=10)
-    ax.set_zlabel('Probability Density', labelpad=10)
 
+    # Generate positions for 0, 1, and 2
+    tick_positions = list(range(num_divisions + 1)) 
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels([str(num_divisions-pos) for pos in tick_positions])
+    ax.set_xlim(0, num_divisions)
+    ax.set_title("3D Spatial Distribution of (X)", pad=20, fontsize=14) # fontweight='bold'
+    ax.set_xlabel('Spatial Region (X-axis)', labelpad=10)
+    ax.set_ylabel('Particle Count (X)', labelpad=10)
+    ax.set_zlabel('Probability Density', labelpad=10)
     ax.set_ylim(0, upper_bound)
-    x_axis_boundaries = np.linspace(0, box_shape[0], num_divisions+1)
-    x_labels = [f"[{x_axis_boundaries[i]:.1f}, {x_axis_boundaries[i+1]:.1f})" 
-                for i in range(num_divisions)]
-    ax.set_xticks(range(num_divisions))
-    ax.set_xticklabels(x_labels)
-    ax.set_title("3D Spatial Distribution of (X)", pad=20, fontsize=14, fontweight='bold')
     ax.view_init(elev=25, azim=-55)
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     ax.legend(loc='upper right')
 
-    ax_2d.set_title("Analytical Stationary Distribution")
-    ax_2d.set_xlabel("Particle Count")
+    ax_2d.set_title("Empirical Stationary Distribution")
+    ax_2d.set_xlabel("Particle Count (X)")
     ax_2d.set_ylabel("Probability Density")
     ax_2d.grid(True)
     ax_2d.legend(loc='upper right')
-    
-    fig.suptitle("Subbox Distributions", fontsize=16, fontweight='bold')
-    plt.tight_layout()
+
+    fig.text(0.5, 0.05, textstr, fontsize=12, ha='center')
+    fig.suptitle("Sub-box Distributions", fontsize=16, fontweight='bold')
+    plt.subplots_adjust(left=0.05, right=0.95, bottom=0.25, top=0.90, wspace=0.25)
     
     filename = f"subbox_dist.png"
     output_plot_path = os.path.join(filestr, filename)
     fig.savefig(output_plot_path)
     print(f"Saved trajectoris and distribution plots to {filestr}")
     plt.close(fig)
-    # plt.show()
 
 
 def main():
@@ -492,7 +494,7 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'hetero_kp_tf_12.0_150.0_tau_1e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
+    filestr = 'hetero_Dx1_tf_6.0_medium_gradient_L_280_750.0_tau_2e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
 
     slice_val = 10000 # 10000 for tau=1e-6
                      
