@@ -102,7 +102,7 @@ def solve_decoupled(gamma, P_lambda, is_homoreaction=True, S=10.0, N1=4000, N2=2
     # solve for delta = 1 - g directly 
     rhs_delta = P_lambda * Kr_ones
     delta = np.linalg.solve(np.eye(N) - M, rhs_delta)
-
+    print(delta)
     # calculate integral of g(r) = 1 - delta(r) over the reactive volume
     integral = 0.0
     for j in range(N1):

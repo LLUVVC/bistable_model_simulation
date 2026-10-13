@@ -38,14 +38,15 @@ def get_data_dir(file_str: str) -> Path:
 
 from simulation.solvers.well_mixed_process import Reaction_Full, Reaction_Schloegl
 
-def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol, DATA_DIR):
+def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol, state_init, DATA_DIR):
     
     print(f"the simulation reaction rates are l={ls}.")
 
     # This is the "burn-in" time. the simulations in [0, t_burn_in] are thrown away
     # of each simulation to let it reach the stable distribution.
     t_burn_in = 0.0 
-    t_burn_in_steps = int(np.ceil(t_burn_in/tau))
+    dt_save = tau*save_step
+    t_burn_in_steps = int(np.ceil(t_burn_in/dt_save))
     t_f_steps = int(np.ceil(t_f/tau))
 
 
@@ -87,13 +88,15 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
 
     for i in range(start_index, start_index + NUM_RUNS_TO_DO):
         print(f"Run {i}...")
-        seed_value = np.random.randint(0, 10000)
+        seed_value = np.random.SeedSequence().generate_state(1)[0]
         print(f"the current seed value is {seed_value}.") # not necessary, keep for checking
         
-        x_init = np.random.randint(low=0, high=400)
+        # x_init = np.random.randint(low=0, high=400)
         ##### POISSON SAMPLING #####
-        x2_init = np.random.poisson(x_init**2*keq/vol) # add the poisson distribution sampling
+        # x2_init = np.random.poisson(x_init**2*keq/vol) # add the poisson distribution sampling
+        x_init, x2_init = state_init
         initial_num = np.array((x_init, x2_init, a*vol, b*vol),dtype=int)
+        print(f"The initial state is X={x_init}, X2={x2_init}.")
         ini_con = initial_num/vol # initial concentrations of chemicals
         full_model_bath = Reaction_Full(ls, reactant_full, product_full, ini_con, bath_full, volume=vol)
   
@@ -102,7 +105,7 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
         print(" ... the simulation of full model with Tau-Leaping algorithm finished.")
 
         # --- Data Collection ---
-        burn_in_indices = np.where(time_run_data >= t_burn_in_steps)[0] # the data without the simulation within 't_burn_in'
+        burn_in_indices = np.where(time_run_data >= t_burn_in)[0] # the data without the simulation within 't_burn_in'
         
 
         if len(burn_in_indices) == 0:
@@ -137,14 +140,15 @@ def run_save_well_mixed_full(NUM_RUNS_TO_DO, save_step, t_f, tau, ls, a, b, vol,
 
 
 
-def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, vol, DATA_DIR):
+def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, vol, state_init, DATA_DIR):
     
     print(f"the simulation reaction rates are k={k}.")
 
     # This is the "burn-in" time. the simulations in [0, t_burn_in] are thrown away
     # of each simulation to let it reach the stable distribution.
     t_burn_in = 0.0 
-    t_burn_in_steps = int(np.ceil(t_burn_in/tau))
+    dt_save = tau*save_step
+    t_burn_in_steps = int(np.ceil(t_burn_in/dt_save))
     t_f_steps = int(np.ceil(t_f/tau))
 
 
@@ -184,12 +188,14 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
 
     for i in range(start_index, start_index + NUM_RUNS_TO_DO):
         print(f"Run {i}...")
-        seed_value = np.random.randint(0,10000)
+        seed_value = np.random.SeedSequence().generate_state(1)[0]
         print(f"the current seed value is {seed_value}.") # not necessary, keep for checking
         
         ###### the "400" is specifically for the current model
         ###### this part can be improved ... 
-        x_init = np.random.randint(low=0, high=400) 
+        # x_init = np.random.randint(low=0, high=400) 
+        x_init, = state_init
+        print(f"The initial state is X={x_init}.")
         ini_con = np.array((x_init/vol, a, b)) # initial concentrations of chemicals
         ###### schloegl model
         schloegl_model_bath = Reaction_Schloegl(k, reactant_schloegl, product_schloegl, ini_con, bath_schloegl, volume=vol)
@@ -200,7 +206,7 @@ def run_save_well_mixed_schloegl(NUM_RUNS_TO_DO, save_step, t_f, tau, k, a, b, v
         print(" ... the simulation of Schloegl model with Tau-Leaping algorithm finished.")
 
         # --- Data Collection ---
-        burn_in_indices = np.where(time_run_data >= t_burn_in_steps)[0] # the data without the simulation within 't_burn_in' 
+        burn_in_indices = np.where(time_run_data >= t_burn_in)[0] # the data without the simulation within 't_burn_in' 
         
 
         if len(burn_in_indices) == 0:
@@ -245,7 +251,8 @@ def main():
     num_runs = 1
     t_f = 500.
     tau = 5e-7
-    save_every_n_steps = int(100) # otherwise the data is too dense, the savings would be very large
+    delta_t = 0.1
+    save_every_n_steps = int(delta_t/tau) # otherwise the data is too dense, the savings would be very large
                                     # note that when comparing data with different tau against each other, 
                                     # slice the stored data to equalize the data points to be used.
                                     
@@ -258,21 +265,23 @@ def main():
         # Parameters unique to the Full model
 
         l = np.array((1.5, 1500., 150., 25., 5.75, 25.))
-        # keq = 0.005
-        # l[0] = l[0]*(keq/0.001)
-        # l[2] = l[2]*(0.001/keq)
-        # l[3] = l[2]/6.
-        # # l[0] = l[0]*5.
-        # # l[1] = l[1]*5.
+        keq = 0.025
+        l[0] = l[0]*(keq/0.001)
+        l[2] = l[2]*(0.001/keq)
+        l[3] = l[2]/6.
+        # l[0] = l[0]*5.
+        # l[1] = l[1]*5.
         print(f"The simulation parameter is: {l}")
-        
+        x_init = 100 # or 300 
+        x2_init = int(x_init**2*keq/vol)
+        state_init = [x_init, x2_init] # X, X_2
         # Safely create the folder name using f-strings 
         file_str = f"full_model_{l[0]}_{l[1]}_tf_{t_f}_tau{tau:0.0e}"
         clean_file_str = re.sub(r'e([+-])0', r'e\1', file_str)
         print(clean_file_str)
         DATA_DIR = get_data_dir(clean_file_str)
         
-        run_save_well_mixed_full(num_runs, save_every_n_steps, t_f, tau, l, a, b, vol, DATA_DIR)
+        run_save_well_mixed_full(num_runs, save_every_n_steps, t_f, tau, l, a, b, vol, state_init, DATA_DIR)
 
     elif MODEL_TO_RUN == "schloegl":
         # Parameters unique to the Schloegl model
@@ -280,10 +289,10 @@ def main():
         print(f"The simulation parameter is: {k}")
         
         # Safely create the folder name
-        file_str = f"schloegl_model_{k[0]}_{k[1]}"
+        file_str = f"schloegl_model_{k[0]}_{k[1]}_tf_{t_f}_tau{tau:0.0e}"
         DATA_DIR = get_data_dir(file_str)
         
-        run_save_well_mixed_schloegl(num_runs, save_every_n_steps, t_f, tau, k, a, b, vol, DATA_DIR)
+        run_save_well_mixed_schloegl(num_runs, save_every_n_steps, t_f, tau, k, a, b, vol, state_init, DATA_DIR)
 
     else:
         print(f"Error: Unknown model type '{MODEL_TO_RUN}'")

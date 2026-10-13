@@ -21,6 +21,7 @@ from scripts.analysis.analyze_distributions import hist_np, kde_sk, get_pretty_u
 from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from scipy.stats import wasserstein_distance
+from matplotlib.ticker import ScalarFormatter
 
 def count_transitions_hysteresis(trajectories, tau, low_thresh=100, high_thresh=200):
     """
@@ -95,11 +96,6 @@ def count_directional_transitions(trajectories, tau, low_thresh=100, high_thresh
     return np.array(low_to_high), np.array(high_to_low)
 
 
-# also need to plot the number of trajs
-
-# In[14]:
-
-
 # 2. DEFINE YOUR THREE FOLDERS HERE
 # (These should be the names of the folders inside 'simulation_data/well_mixed_data/')
 folders = [
@@ -131,24 +127,31 @@ labels = [
     r"(e) Case 5: $\gamma=0.5477,D=1500, \tau=5 \times 10^{-7}$",
     r"(f) Case 6: $\gamma=0.5477,D=3000, \tau=2.5 \times 10^{-7}$"
 ]
+time_labels = [r'$\tau=2 \times 10^{-6}$', r'$\tau=1 \times 10^{-6}$', r'$\tau=5 \times 10^{-7}$',
+              r'$\tau=1 \times 10^{-6}$', r'$\tau=5 \times 10^{-7}$', r'$\tau=2.5 \times 10^{-7}$',]
+col_headers = [r"$D = 750$", r"$D = 1500$", r"$D = 3000$"]
+row_headers = [r"$\gamma = 0.7746$", r"$\gamma = 0.5477$"]
+
 # 3. SETUP THE FIGURE
-# Increased the width from 12 to 16 so the 4 columns don't squish together
-fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(24, 9))
-axs_flat = axs.flatten()
+fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(7.0, 3.8), sharex=True, sharey=True)
 
 color_x = "#0072B2"
 color_x2 = "#D55E00"
 num_plot_traj = 100
-print(axs)
+
 plt.rcParams.update({
-    'font.size': 16,          # General font size
-    'axes.titlesize': 20,     # Subtitles & top case labels
-    'axes.labelsize': 22,     # Axis labels (X and Y labels)
-    'xtick.labelsize': 16,    # X-axis tick numbers
-    'ytick.labelsize': 16,    # Y-axis tick numbers
-    'legend.fontsize': 16     # Legend font size
+    'font.size': 8,          
+    'axes.titlesize': 8,     
+    'axes.labelsize': 8,     
+    'xtick.labelsize': 7.5,    
+    'ytick.labelsize': 7.5,    
+    'legend.fontsize': 7.5,     
+    'font.family': 'serif',
+    'font.serif': ['Times New Roman', 'DejaVu Serif'],
+    'mathtext.fontset': 'stix'
 })
-for col, (folder, label) in enumerate(zip(folders, labels)):
+
+for col_cnt, (folder, label) in enumerate(zip(folders, labels)):
 
     file_str = "spatial_data/" + folder
     print(f"Loading data from: {file_str}")
@@ -161,44 +164,18 @@ for col, (folder, label) in enumerate(zip(folders, labels)):
         continue
 
     tau = metadata['timestep']
-    # Downsample data slightly to speed up plotting/density calculations
     slice_val = max(1, int(1e-2/tau))
 
-    # # ==========================================
-    # # --- TOP ROW: Trajectory ---
-    # # ==========================================
-    # ax_traj = axs[0, col]
-    # traj = trajectories[0] # Just plot the first trajectory as an example
-    # x_time = traj['timescale']
-    # y_x = traj['species_log']['X']
-
-    # ax_traj.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5)
-    # ax_traj.fill_between(x_time, y_x, color=color_x, step='post', alpha=0.1)
-
-    # # If full model, plot X2 as well
-    # if 'X2' in traj['species_log']:
-    #     y_x2 = traj['species_log']['X2']
-    #     ax_traj.plot(x_time, y_x2, color=color_x2, label='$X_2$', drawstyle='steps-post', alpha=0.9, linewidth=1.5)
-    #     ax_traj.fill_between(x_time, y_x2, color=color_x2, step='post', alpha=0.1)
-
-    # ax_traj.set_title(f"{label}\nTrajectory", fontsize=14)
-    # ax_traj.set_xlabel('Time')
-    # ax_traj.set_ylabel('Particle Count')
-    # ax_traj.legend(loc='upper right')
-    # ax_traj.grid(True, linestyle='--', alpha=0.4)
-    # ax_traj.spines['top'].set_visible(False)
-    # ax_traj.spines['right'].set_visible(False)
-    # ax_traj.set_xlim(left=x_time[0])
-    # ax_traj.set_ylim(0, 430)
-
     # ==========================================
-    # --- BOTTOM ROW: Distribution ---
+    # --- DISTRIBUTION PLOT ---
     # ==========================================
-    ax_dist = axs_flat[col] # axs[col]#[0, col]
+    col = col_cnt % 3
+    i = col_cnt // 3
+    ax_dist = axs[i, col]
+    
     if num_plot_traj < len(trajectories):
         trajectories = random.sample(trajectories, num_plot_traj)
         print(f"the number of trajs is {len(trajectories)}")
-        # overwrite the combined_data to ONLY include the sampled trajectories
         combined_data_X = np.concatenate([t['species_log']['X'] for t in trajectories])
         if 'X2' in trajectories[0]['species_log']:
             combined_data_X2 = np.concatenate([t['species_log']['X2'] for t in trajectories])
@@ -212,19 +189,18 @@ for col, (folder, label) in enumerate(zip(folders, labels)):
     rates = count_transitions_hysteresis(trajectories, tau)
     print(f"{label}")
     print(f"  Mean switching rate: {np.mean(rates):.4f} transitions/time")
-    print(f"  Std:                 {np.std(rates):.4f}")
-    print()
+    print(f"  Std:                 {np.std(rates):.4f}\n")
+    
     valid_idx = combined_data_X > 0
     safe_X = combined_data_X[valid_idx]
     safe_X2 = combined_data_X2[valid_idx]   
-    # Calculate ratio: (X2 * Vol) / (X^2)
     ratio_1 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
     print(f"----- Test: the ratio is {ratio_1:.6f} × 10⁻³ -----")
 
     upper_bound = get_pretty_upper_bound(combined_data_X)
 
     bin_width = 4.0
-    band_width = 2.5714 # Project default bandwidth
+    band_width = 2.5714 
 
     hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
     x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
@@ -235,7 +211,7 @@ for col, (folder, label) in enumerate(zip(folders, labels)):
     b = metadata['b']
     box_shape = metadata['box_shape']
     vol = np.prod(box_shape)
-    # If full model, convert macroscopic l to k to get the Schlögl analytical curve
+    
     if len(combined_data) > 1:
         macrorates_k = calculate_k_from_l(macrorates)
     else:
@@ -243,39 +219,49 @@ for col, (folder, label) in enumerate(zip(folders, labels)):
 
     p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
     W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X)
-    print(f"the current group is: {metadata}")
-    print(f"the wasserstein distance is: {W_d}")
-
-    ax_dist.bar(hist_bin, density_hist, width=bin_width, color= "#0072B2", alpha=0.7, label='Simulation') #edgecolor='white',
-    # ax_dist.plot(x_axis_plot, kde_X, color="#8ab41f", linewidth=2.5, label='KDE')
-    ax_dist.plot(p_states, stat_dist, color='#e74c3c', linewidth=3.5, label='Steady-state solution')
+    
+    ax_dist.bar(hist_bin, density_hist*100, width=bin_width, color="#1f77b4", alpha=0.6, label='Particle Simulation (Extended Schlögl)')
+    ax_dist.plot(p_states, stat_dist*100, color='#e74c3c', linewidth=1.5, label='Stationary distribution (Schlögl)')
+    
     effective_macrorates_k = calculate_k_from_l(rate_configs[col])
     p_states2, stat_dist2 = get_analytical_curve(upper_bound, effective_macrorates_k, a, b, vol)
-    W_d2 = wasserstein_distance(p_states2, x_axis_plot, stat_dist2, kde_X)
-    ax_dist.plot(p_states2, stat_dist2, color="#fdbf06", alpha=0.8, linewidth=3.5, linestyle=':', label='Predicted')
-    print(f"the current rate configuration is: {rate_configs[col]}")
-    print(f"the wasserstein distance is: {W_d2}")
+    
+    # Updated dashed black line for high contrast
+    ax_dist.plot(p_states2, stat_dist2*100, color="black", alpha=0.8, linewidth=1.5, linestyle='--', label='Discrete-time Prediction')
 
-    ax_dist.set_title(f"{label}\nStationary Distribution", fontsize=14)
-    ax_dist.set_xlabel('Particle Count X')
-    ax_dist.set_ylabel('Probability')
+    time_label = time_labels[col_cnt]
+    ax_dist.text(
+        0.04, 0.88, f'({chr(97+col_cnt)}) {time_label}', 
+        transform=ax_dist.transAxes, fontsize=7.5, fontweight='bold', va='top'
+    )
+
     ax_dist.set_xlim(0, upper_bound)
-    ax_dist.set_ylim(0, 0.012)
-    ax_dist.legend(loc='upper right')
-    ax_dist.grid(True, linestyle='--', alpha=0.4)
+    ax_dist.set_ylim(0, 1.3)
+    
+    ax_dist.grid(True, linestyle=':', alpha=0.4)
     ax_dist.spines['top'].set_visible(False)
     ax_dist.spines['right'].set_visible(False)
 
-# Add a super title for the whole figure
-# fig.suptitle("Enforcing Time-Scale Separation in the Full Reaction Network", fontsize=18, y=0.98, fontweight='bold')
-fig.tight_layout(w_pad=2.0) # Forces horizontal padding between the subplots
-# Save the figure as a high-res image suitable for a thesis
+for col_idx, header in enumerate(col_headers):
+    axs[0, col_idx].set_title(header, fontsize=8, pad=5, fontweight='bold')
+
+plt.subplots_adjust(left=0.11, right=0.98, top=0.86, bottom=0.14, hspace=0.22, wspace=0.15)
+
+fig.text(0.02, 0.70, row_headers[0], rotation=90, ha='center', va='center', fontsize=8, fontweight='bold')
+fig.text(0.02, 0.30, row_headers[1], rotation=90, ha='center', va='center', fontsize=8, fontweight='bold')
+fig.supxlabel("Particle count $X$", fontsize=8, y=0.02)
+fig.supylabel("Probability (%)", fontsize=8, x=0.05)
+
+handles, labels = axs[0, 0].get_legend_handles_labels()
+fig.legend(
+    handles, labels, 
+    loc="lower center", bbox_to_anchor=(0.55, 0.92), 
+    ncol=3, frameon=False, fontsize=7.5
+)
 plt.savefig("simulation_dist.pdf", dpi=300, bbox_inches='tight')
 plt.show()
 
-
 # In[15]:
-
 
 def check_conditional_keq(trajectories, vol=8.0, low_thresh=100, high_thresh=200):
     keq_low_list = []

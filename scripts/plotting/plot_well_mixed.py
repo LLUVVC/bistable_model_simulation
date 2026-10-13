@@ -99,7 +99,8 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     # color_x2 = "#efb20b" 
     color_x = "#0072B2" 
     color_x2 = "#D55E00" 
-    
+
+    step_val = 10000 # 10000 now i sliced the data when store them
 
     species_num = len(combined_data)
 
@@ -150,14 +151,15 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         # clean up the frame
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+ 
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale']
-            y_x = traj['species_log']['X']
+            x_time = traj['timescale'][::step_val]
+            y_x = traj['species_log']['X'][::step_val]
             
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             # add a subtle shaded area under the curves
-            ax.fill_between(x_time, y_x, color=color_x, step='post', alpha=0.1)
+            # ax.fill_between(x_time, y_x, color=color_x, step='post', alpha=0.1)
         
             ax.set_xlabel('Timespan ($t$)')
             ax.set_ylabel('Particle Count')
@@ -213,12 +215,13 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         # clean up the frame
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+
         for i, traj in enumerate(trajectories):
             ax = axs[i]
-            x_time = traj['timescale']
+            x_time = traj['timescale'][::step_val]
             
-            y_x = traj['species_log']['X']
-            y_x2 = traj['species_log']['X2']
+            y_x = traj['species_log']['X'][::step_val]
+            y_x2 = traj['species_log']['X2'][::step_val]
             ax.plot(x_time, y_x, color=color_x, label='X', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=1)
             ax.plot(x_time, y_x2, color=color_x2, label='X2', drawstyle='steps-post', alpha=0.9, linewidth=1.5, zorder=2)
             # add a subtle shaded area under the curves
@@ -313,9 +316,9 @@ def main():
     it can be manually change to True if needed.
     
     """
-    filestr =  "full_model_1.5_1500.0_tf_500_tau1e-6" # "schloegl_model_0.15_0.025"
+    filestr =  "full_model_1.5_1500.0_tf_50000.0_tau5e-7_initX_100" # "schloegl_model_0.15_0.025"
 
-    plot_well_mixed(filestr, num_traj=4, optimize_bw=False) # optimize_bw as an input
+    plot_well_mixed(filestr, num_traj=2, optimize_bw=False) # optimize_bw as an input
 
 
 
