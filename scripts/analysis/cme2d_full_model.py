@@ -22,7 +22,7 @@ def solve_cme_2d(l, a, b, V, Xmax, Ymax):
     The matrix is of the form idx-(target, source)
     """
     l1p, l1m, l2p, l2m, l3p, l3m = l
-    nx, ny = Xmax + 1, Ymax + 1 
+    nx, ny = int(Xmax + 1), int(Ymax + 1) 
     X, Y = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
     idx = lambda x, y: x * ny + y # idx corresponds to s.
     rows, cols, vals = [], [], []
@@ -47,12 +47,17 @@ def solve_cme_2d(l, a, b, V, Xmax, Ymax):
     add(np.full(X.shape, l3p * b * V), 1, 0)
     add(l3m * X * 1.0, -1, 0)
 
-    n = nx * ny
+    n = int(nx * ny)
     QT = sp.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)).tolil()
     QT[0, :] = 1.0                      # replace one equation by normalization sum(P) = 1
     rhs = np.zeros(n); rhs[0] = 1.0
     P = spl.spsolve(QT.tocsc(), rhs).reshape(nx, ny)
-    return P.sum(axis=1), P             # marginal P(X = x), joint P(X, X2)
+    PX = P.sum(axis=1)
+    print(f'The minimum 2D-CME solver entry is {PX.min()}.')                 # keep this: shows the size of the numerical noise
+    if abs(PX.min())<10**(-14):
+        PX = np.clip(PX, 0.0, None)
+        PX /= PX.sum()                  # changes the total by ~1e-16, i.e. nothing
+    return PX, P             # marginal P(X = x), joint P(X, X2)
 
 
 if __name__ == "__main__":

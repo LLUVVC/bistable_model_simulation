@@ -49,11 +49,30 @@ def get_data_dir(file_str: str) -> Path:
 
     return data_dir
 
+def count_switches(X, lo=100, hi=180):      # hysteresis band around the unstable point
+    n = 0
+    for traj in X:
+        state = None
+        for x in traj['species_log']['X']:
+            if x > hi and state != 'u': state, n = 'u', n + (state is not None)
+            elif x < lo and state != 'l': state, n = 'l', n + (state is not None)
+    return n/len(X)
 
-def select_samples(X, times, snapshot_time=None):
-    if snapshot_time is None:
-        return X.ravel()               # as before: everything that was saved
-    return X[:, np.argmin(np.abs(times - snapshot_time))]
+# def select_samples(X, times, snapshot_time=None):
+#     if snapshot_time is None:
+#         return X.ravel()               # as before: everything that was saved
+#     return X[:, np.argmin(np.abs(times - snapshot_time))]
+
+
+def pooled_samples(trajs, t_start=0.0, stride=1):
+    """X values with t >= t_start from every trajectory, thinned by `stride`."""
+    xs = []
+    for traj in trajs:
+        #print(traj.keys())
+        i0 = np.searchsorted(traj['timescale'], t_start)       # first saved point with t >= t_start
+        xs.append(np.asarray(traj['species_log']['X'][i0::stride]))
+    return np.concatenate(xs)
+
 
 def plot_traj(trajectories, axs, step_val, color_x, color_x2, full=False):
     for i, traj in enumerate(trajectories):
@@ -82,30 +101,36 @@ def plot_traj(trajectories, axs, step_val, color_x, color_x2, full=False):
 
     return axs
 
-def plot_time_average(combined_data_X, upper_bound, bin_width, band_width, 
-                      macrorates, a, b, vol, ax, ori_len_traj, full=False):
+
+    
+def plot_time_average(trajectories, upper_bound, bin_width, band_width, 
+                      ax, ori_len_traj, t_start=0.0,stride=1, stat_sch=None, stat_full=None):
+    
+    combined_data_X = pooled_samples(trajectories, t_start, stride)
     hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
     x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
 
     # analytical results
     # calculate the corresponding macroscopic reaction rates for the Schlögl model to get the analytical curve
-    if full:
-        macrorates_k = calculate_k_from_l(macrorates)
-    else:
-        macrorates_k = macrorates
+    if stat_sch is not None:
+        p_states, stat_dist = stat_sch
+        W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
+        print(f"the wasserstein distance is {W_d}")
+        ax.plot(p_states, stat_dist*100, color='#e74c3c', 
+                    linewidth=2.5, zorder=4, label='Schlögl model') # '#f39c12' # linestyle='--'
+    ax.bar(hist_bin, density_hist*100, width=bin_width, 
+        color='#a9cce3', alpha=0.6) # '#d5d8dc'# edgecolor='white',
+    ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=2.5, 
+            zorder=3, label='Stationary dist. (Simulation KDE)') # '#2e4053'
+    
+    if stat_full is not None:
+        stat_x, stat_p = stat_full
+        ax.plot(stat_x, stat_p*100, color='black', linestyle='--', linewidth=3.5, label='Stationary dist. (2D-CME)')
 
-    p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
-    W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
-    print(f"the wasserstein distance is {W_d}")
-    ax.bar(hist_bin, density_hist, width=bin_width, 
-        color='#a9cce3', alpha=0.6, label='Simulation') # '#d5d8dc'# edgecolor='white',
-    ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=3.5, 
-            zorder=3, label='KDE') # '#2e4053'
-    ax.plot(p_states, stat_dist, color='#e74c3c', 
-            linewidth=2.5, zorder=4, label='Steady-state solution') # '#f39c12' # linestyle='--'
-    ax.set_title(f'Combined trajectories: {ori_len_traj}')
-    ax.set_xlabel('Particle Count')
-    ax.set_ylabel('Probability')
+    ax.set_title(f'N = {ori_len_traj}, t ≥ {t_start}')
+    # ax.set_title(f'Combined trajectories: {ori_len_traj}')
+    ax.set_xlabel('Particle Count X')
+    ax.set_ylabel('Probability (%)')
     ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
     ax.legend(fontsize='small', loc='upper right')
     ax.grid(True, linestyle='--', alpha=0.4, which='both')
@@ -115,26 +140,72 @@ def plot_time_average(combined_data_X, upper_bound, bin_width, band_width,
 
     return ax
 
-def plot_snapshot(trajs, snap_list, axs_snap, upper_bound, bin_width, band_width):
-    for i in range(len(snap_list)):
-        ax=axs_snap[i]
-        snapshot_time = snap_list[i]
-        x_snap = snapshot(trajs, snapshot_time)
+def plot_snapshot(trajs, snap_list, axs_snap, upper_bound, bin_width, band_width, stat_sch=None, stat_full=None):
+    
+    for ax, t in zip(axs_snap, snap_list):
+        x_snap = snapshot(trajs, t)
         hist_bin, density_hist = hist_np(x_snap, upper_bound, bin_width)
         x_axis_plot, kde_X = kde_sk(x_snap, upper_bound, band_width)
-        ax.bar(hist_bin, density_hist, width=bin_width, 
-                        color='#a9cce3', edgecolor='white', alpha=0.6, label='Simulation')
-        ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=3.5, 
-                    zorder=3, label='KDE') # '#2e4053'
-        ax.set_title(f'time={snapshot_time}')
-        ## where to put the number of trajs?
+        print(f'The simulated KDE low peak area is {np.mean(x_snap<135)}.')
+        if stat_sch is not None:
+            p_states, stat_dist = stat_sch
+            ax.plot(p_states, stat_dist*100, color='#e74c3c', 
+                        linewidth=2.5, zorder=4, label='Schlögl model') # '#f39c12' # linestyle='--'
+            if stat_full is None:
+                print(f'The calculated low peak area is {stat_dist[:135].sum()}.') # , the high peak area is {stat_dist[:150].sum()}
+            W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
+            print(f"the wasserstein distance to the original Schlögl model is {W_d}.")
+        ax.bar(hist_bin, density_hist*100, width=bin_width, 
+                        color='#a9cce3', edgecolor='white', alpha=0.6)
+        ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=2.5, 
+                    zorder=3, label='Stationary dist. (Simulation KDE)') # '#2e4053'
+        if stat_full is not None:
+            stat_x, stat_p = stat_full
+            print(f'The calculated low peak area is {stat_p[:135].sum()}.')   # lower-state weight, two thresholds # , the high peak area is {stat_p[150:].sum()}
+            ax.plot(stat_x, stat_p*100, color='black', linewidth=3.5, linestyle='--', label='Stationary dist. (2D-CME)')  
+            W_d = wasserstein_distance(stat_x[:upper_bound], x_axis_plot, stat_p[:upper_bound], kde_X) # W(asserstein)_d(istance)
+            print(f"the wasserstein distance to the extended Schlögl model is {W_d}.")
+            """ should i normalize wd by two peak difference: ~220 ???"""
+        ax.set_title(f'time={t}')
+        ax.set_ylabel('Probability (%)')
+        ax.set_xlabel('Particle Count X')
+        ax.set_xlim(0, upper_bound)
+        ax.grid(True, linestyle='--', alpha=0.4, which='both')
+        if t == snap_list[-1]:
+            ax.legend()
+
     return axs_snap
 
-def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimize_bw=False, 
-                    snap_list=None):
+def find_equilibrate_time(trajs, p_exact):
+
+    times = np.arange(5, 500, 5)
+    p_low = np.array([np.mean(snapshot(trajs, t) < 135) for t in times])
+    se = np.sqrt(p_exact*(1-p_exact)/len(trajs))
+    inside = np.abs(p_low - p_exact) < 3*se # 3 std
+    outside = np.where(~inside)[0]
+    if len(outside) == 0:
+        t_eq = times[0]
+    elif outside.max() == len(times) - 1:
+        t_eq = None                          # still outside the band at the last time
+    else:
+        t_eq = times[outside.max() + 1]
+
+    if t_eq is None:
+        print(f"Not equilibrated within t_f = {times[-1]:.0f}: low fraction {p_low[-1]:.4f} vs exact {p_exact:.4f}")
+    else:
+        print(f"... equilibrated from t = {t_eq}")
+    # t_eq = times[np.where(~inside)[0].max() + 1] if (~inside).any() else times[0]
+
+    return t_eq
+
+def plot_well_mixed(file_str, num_traj, bin_width=10., band_width=2.5714, optimize_bw=False, 
+                    snap_list=None, traj_example=False):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
+    
+    Snap_list: time points we take a snapshot of each trajectory in the pool
+    traj_example: if True, we print the randomly selected "num_traj" example trajs
     """
     file_str = "well_mixed_data/" + file_str 
     trajectories, combined_data, metadata = load_well_mixed_data(file_str=file_str)
@@ -144,6 +215,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     b = metadata['b']
     vol = metadata['vol']
     macrorates = metadata['macrorates']
+    tf = metadata['timespan']
 
     # slice the data according to the size of tau
     slice_val = int(1e-5/tau)
@@ -170,13 +242,7 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
         'ytick.labelsize': 18,    # Y-axis tick numbers
         'legend.fontsize': 18     # Legend font size
     })
-    fig_dist, ax = plt.subplots(figsize=(12, 6))
-    header_height = 2.0  # Reserve exactly 2 inches for the title and text box
-    fig_height = 4 * nrows + header_height
-    fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, fig_height))
-    # Flatten axes to 1D array for easy iteration
-    axs = np.array(axs).reshape(-1)
-
+    
     color_x = "#0072B2" 
     color_x2 = "#D55E00" 
 
@@ -189,40 +255,71 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     print(f"The calculated upper bound for #X is {upper_bound}")
     print(f"--- Total data points for distribution is {len(combined_data_X)} ---")
 
+    average_switch = count_switches(trajectories, lo=100, hi=180)
+    print(f'for current params, the average switch over timespan={tf} per traj is {average_switch},'+
+          f'corresponding to {average_switch*24/tf} over timespan= 24.')
+    
     if optimize_bw:
     
         print("Optimizing bandwidth via GridSearchCV. This might take a moment...")
         bw_X_data = combined_data_X[:, np.newaxis]
         band_width = find_the_best_bw(bw_X_data)
         
-        print("Consider updating your default band_width parameter to this new value.")
+        print(f"Consider updating your default band_width parameter to this new value band width={band_width}.")
     if species_num == 1:
         ##### model = 'Schlögl'
-
+        [p_states, stat_dist] = get_analytical_curve(upper_bound, macrorates, a, b, vol)
+        teq = find_equilibrate_time(trajectories, stat_dist[:135].sum())
+        print(f"For the current model and initial state, the equilibrated time for the system is around t={teq}.")
         if snap_list is None:
+            fig_dist, ax = plt.subplots(figsize=(12, 6))
+            plot_time_average(selected_trajectories, upper_bound, bin_width, band_width, 
+                    ax, ori_len_traj, t_start=teq, stat_sch=[p_states, stat_dist])
+            fig_dist.tight_layout()
 
-            plot_time_average(combined_data_X, upper_bound, bin_width, band_width, 
-                      macrorates, a, b, vol, ax, ori_len_traj)
-        
         else:
-           fig_snap, axs_snap = plt.subplots(ncols=len(snap_list), figsize=(3*len(snap_list), 3))
-           plot_snapshot(trajectories, snap_list, axs_snap, upper_bound, bin_width, band_width)
-
+            fig_snap, axs_snap = plt.subplots(ncols=len(snap_list), figsize=(6*len(snap_list), 6), sharey=True)
+            plot_snapshot(trajectories, snap_list, axs_snap, upper_bound, bin_width, band_width, stat_sch=[p_states, stat_dist])
+            fig_snap.suptitle(f'N={ori_len_traj}', fontsize=16)
+        if traj_example:
+            header_height = 2.0  # Reserve exactly 2 inches for the title and text box
+            fig_height = 4 * nrows + header_height
+            fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, fig_height), sharey=True)
+            # Flatten axes to 1D array for easy iteration
+            axs = np.array(axs).reshape(-1)
         ##### plot the trajctories 
-        plot_traj(selected_trajectories, axs, step_val, color_x, color_x2)
+            plot_traj(selected_trajectories, axs, step_val, color_x, color_x2)
 
     elif species_num == 2:
         ##### model = 'Full'
-        
+        Xmax = int(upper_bound+20)
+        m = Xmax**2 * macrorates[0] / (vol*macrorates[1])
+        Ymax = int(np.ceil(m + 6*np.sqrt(m))) + 10 # Ymax = int(np.ceil(Xmax**2*macrorates[0]/(macrorates[1]*vol)))
+        stat_x = np.arange(0, Xmax+1)
+        stat_p,_ = solve_cme_2d(macrorates, a, b, vol, Xmax=Xmax, Ymax=Ymax)
+        teq = find_equilibrate_time(trajectories, stat_p[:135].sum())
+        print(f"For the current model and initial state, the equilibrated time for the system is around t={teq}.")
+        macrorates_k = calculate_k_from_l(macrorates)  
+        p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
         if snap_list is None:
-            plot_time_average(combined_data_X, upper_bound, bin_width, band_width, 
-                                  macrorates, a, b, vol, ax, ori_len_traj, full=True)
+            fig_dist, ax = plt.subplots(figsize=(12, 6))
+            plot_time_average(selected_trajectories, upper_bound, bin_width, band_width, 
+                                ax, ori_len_traj, t_start=teq,
+                                stat_sch=[p_states, stat_dist], stat_full=[stat_x, stat_p])
+            fig_dist.tight_layout()
         else:
-            fig_snap, axs_snap = plt.subplots(ncols=len(snap_list), figsize=(3*len(snap_list), 3))
-            plot_snapshot(trajectories, snap_list, axs_snap, upper_bound, bin_width, band_width)
-
-        ##### plot the trajctories 
-        plot_traj(selected_trajectories, axs, step_val, color_x, color_x2, full=True)
+            x_init = trajectories[0]['species_log']['X'][0]
+            fig_snap, axs_snap = plt.subplots(ncols=len(snap_list), figsize=(6*len(snap_list), 6), sharey=True)
+            plot_snapshot(trajectories, snap_list, axs_snap, upper_bound, bin_width, band_width, [p_states, stat_dist], [stat_x, stat_p])
+            fig_snap.suptitle(rf'N={ori_len_traj}', fontsize=16) # , $X_0$={x_init}
+        if traj_example:
+            header_height = 2.0  # Reserve exactly 2 inches for the title and text box
+            fig_height = 4 * nrows + header_height
+            fig_traj, axs = plt.subplots(nrows, ncols, figsize=(12, fig_height), sharey=True)
+            # Flatten axes to 1D array for easy iteration
+            axs = np.array(axs).reshape(-1)
+            ##### plot the trajctories 
+            plot_traj(selected_trajectories, axs, step_val, color_x, color_x2, full=True)
     else:
         print("Error.")
         return 0
@@ -250,7 +347,6 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
     #     y=0.98
     # )
     # fig_dist.tight_layout(rect=[0, 0.05, 1, 0.75])
-    fig_dist.tight_layout()
 
     # --- Get timestamp for filename ---
     # Format as YYYY-MM-DD_HH-MM-SS
@@ -267,12 +363,15 @@ def plot_well_mixed(file_str, num_traj, bin_width=2., band_width=2.5714, optimiz
 
     output_plot_path_dist = os.path.join(DATA_DIR, filename_dist)
     output_plot_path_traj = os.path.join(DATA_DIR, filename_traj)
-    fig_traj.savefig(output_plot_path_traj)
     output_plot_path_snap = os.path.join(DATA_DIR, filename_snap)
+
+    if traj_example:
+        fig_traj.savefig(output_plot_path_traj)
     if snap_list:
-        fig_snap.savefig(output_plot_path_snap)
+        fig_snap.savefig(output_plot_path_snap)   
     else:
         fig_dist.savefig(output_plot_path_dist)
+
     print(f"Saved trajectories and distribution plots to {DATA_DIR}")
     plt.close('all')
 
@@ -285,12 +384,11 @@ def main():
     it can be manually change to True if needed.
     
     """
-    filestr =  "schloegl_model_0.15_0.025_tf_500.0_tau5e-07_initX_300" # "schloegl_model_0.15_0.025"
+    filestr =  "schloegl_model_0.15_0.025_tf_500.0_tau5e-07_initX_100" # 'full_model_7.5_1500.0_tf_500.0_tau5e-7_initX_100' # 
 
-    snap_list = [50, 100, 250, 450]
+    snap_list =  None # [50, 100, 250, 450, 495] # None 
 
-    plot_well_mixed(filestr, num_traj=10, snap_list=snap_list, optimize_bw=False) # optimize_bw as an input
-
+    plot_well_mixed(filestr, num_traj=200, snap_list=snap_list, optimize_bw=False) # optimize_bw as an input
 
 
 
