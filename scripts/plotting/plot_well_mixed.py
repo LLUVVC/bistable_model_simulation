@@ -2,13 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random 
 from scripts.analysis.data_loader import load_well_mixed_data
-from scripts.analysis.analyze_distributions import find_the_best_bw, hist_np, kde_sk, get_pretty_upper_bound
+from scripts.analysis.analyze_distributions import find_the_best_bw, get_pretty_upper_bound
 from simulation.models.analytical_curve import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
-from scipy.stats import wasserstein_distance
 from datetime import datetime
 from scripts.analysis.cme2d_full_model import solve_cme_2d
-from scripts.analysis.stationarity import snapshot
+from scripts.analysis.stationarity import count_switches, plot_time_average, plot_snapshot, find_equilibrate_time
 
 """
 1. Plot the distribution of species X throughout the simulation process, using data aggregated from all trajectories 
@@ -49,29 +48,11 @@ def get_data_dir(file_str: str) -> Path:
 
     return data_dir
 
-def count_switches(X, lo=100, hi=180):      # hysteresis band around the unstable point
-    n = 0
-    for traj in X:
-        state = None
-        for x in traj['species_log']['X']:
-            if x > hi and state != 'u': state, n = 'u', n + (state is not None)
-            elif x < lo and state != 'l': state, n = 'l', n + (state is not None)
-    return n/len(X)
 
 # def select_samples(X, times, snapshot_time=None):
 #     if snapshot_time is None:
 #         return X.ravel()               # as before: everything that was saved
 #     return X[:, np.argmin(np.abs(times - snapshot_time))]
-
-
-def pooled_samples(trajs, t_start=0.0, stride=1):
-    """X values with t >= t_start from every trajectory, thinned by `stride`."""
-    xs = []
-    for traj in trajs:
-        #print(traj.keys())
-        i0 = np.searchsorted(traj['timescale'], t_start)       # first saved point with t >= t_start
-        xs.append(np.asarray(traj['species_log']['X'][i0::stride]))
-    return np.concatenate(xs)
 
 
 def plot_traj(trajectories, axs, step_val, color_x, color_x2, full=False):
@@ -102,101 +83,7 @@ def plot_traj(trajectories, axs, step_val, color_x, color_x2, full=False):
     return axs
 
 
-    
-def plot_time_average(trajectories, upper_bound, bin_width, band_width, 
-                      ax, ori_len_traj, t_start=0.0,stride=1, stat_sch=None, stat_full=None):
-    
-    combined_data_X = pooled_samples(trajectories, t_start, stride)
-    hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
-    x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
 
-    # analytical results
-    # calculate the corresponding macroscopic reaction rates for the Schlögl model to get the analytical curve
-    if stat_sch is not None:
-        p_states, stat_dist = stat_sch
-        W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
-        print(f"the wasserstein distance is {W_d}")
-        ax.plot(p_states, stat_dist*100, color='#e74c3c', 
-                    linewidth=2.5, zorder=4, label='Schlögl model') # '#f39c12' # linestyle='--'
-    ax.bar(hist_bin, density_hist*100, width=bin_width, 
-        color='#a9cce3', alpha=0.6) # '#d5d8dc'# edgecolor='white',
-    ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=2.5, 
-            zorder=3, label='Stationary dist. (Simulation KDE)') # '#2e4053'
-    
-    if stat_full is not None:
-        stat_x, stat_p = stat_full
-        ax.plot(stat_x, stat_p*100, color='black', linestyle='--', linewidth=3.5, label='Stationary dist. (2D-CME)')
-
-    ax.set_title(f'N = {ori_len_traj}, t ≥ {t_start}')
-    # ax.set_title(f'Combined trajectories: {ori_len_traj}')
-    ax.set_xlabel('Particle Count X')
-    ax.set_ylabel('Probability (%)')
-    ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
-    ax.legend(fontsize='small', loc='upper right')
-    ax.grid(True, linestyle='--', alpha=0.4, which='both')
-    # clean up the frame
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-    return ax
-
-def plot_snapshot(trajs, snap_list, axs_snap, upper_bound, bin_width, band_width, stat_sch=None, stat_full=None):
-    
-    for ax, t in zip(axs_snap, snap_list):
-        x_snap = snapshot(trajs, t)
-        hist_bin, density_hist = hist_np(x_snap, upper_bound, bin_width)
-        x_axis_plot, kde_X = kde_sk(x_snap, upper_bound, band_width)
-        print(f'The simulated KDE low peak area is {np.mean(x_snap<135)}.')
-        if stat_sch is not None:
-            p_states, stat_dist = stat_sch
-            ax.plot(p_states, stat_dist*100, color='#e74c3c', 
-                        linewidth=2.5, zorder=4, label='Schlögl model') # '#f39c12' # linestyle='--'
-            if stat_full is None:
-                print(f'The calculated low peak area is {stat_dist[:135].sum()}.') # , the high peak area is {stat_dist[:150].sum()}
-            W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
-            print(f"the wasserstein distance to the original Schlögl model is {W_d}.")
-        ax.bar(hist_bin, density_hist*100, width=bin_width, 
-                        color='#a9cce3', edgecolor='white', alpha=0.6)
-        ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=2.5, 
-                    zorder=3, label='Stationary dist. (Simulation KDE)') # '#2e4053'
-        if stat_full is not None:
-            stat_x, stat_p = stat_full
-            print(f'The calculated low peak area is {stat_p[:135].sum()}.')   # lower-state weight, two thresholds # , the high peak area is {stat_p[150:].sum()}
-            ax.plot(stat_x, stat_p*100, color='black', linewidth=3.5, linestyle='--', label='Stationary dist. (2D-CME)')  
-            W_d = wasserstein_distance(stat_x[:upper_bound], x_axis_plot, stat_p[:upper_bound], kde_X) # W(asserstein)_d(istance)
-            print(f"the wasserstein distance to the extended Schlögl model is {W_d}.")
-            """ should i normalize wd by two peak difference: ~220 ???"""
-        ax.set_title(f'time={t}')
-        ax.set_ylabel('Probability (%)')
-        ax.set_xlabel('Particle Count X')
-        ax.set_xlim(0, upper_bound)
-        ax.grid(True, linestyle='--', alpha=0.4, which='both')
-        if t == snap_list[-1]:
-            ax.legend()
-
-    return axs_snap
-
-def find_equilibrate_time(trajs, p_exact):
-
-    times = np.arange(5, 500, 5)
-    p_low = np.array([np.mean(snapshot(trajs, t) < 135) for t in times])
-    se = np.sqrt(p_exact*(1-p_exact)/len(trajs))
-    inside = np.abs(p_low - p_exact) < 3*se # 3 std
-    outside = np.where(~inside)[0]
-    if len(outside) == 0:
-        t_eq = times[0]
-    elif outside.max() == len(times) - 1:
-        t_eq = None                          # still outside the band at the last time
-    else:
-        t_eq = times[outside.max() + 1]
-
-    if t_eq is None:
-        print(f"Not equilibrated within t_f = {times[-1]:.0f}: low fraction {p_low[-1]:.4f} vs exact {p_exact:.4f}")
-    else:
-        print(f"... equilibrated from t = {t_eq}")
-    # t_eq = times[np.where(~inside)[0].max() + 1] if (~inside).any() else times[0]
-
-    return t_eq
 
 def plot_well_mixed(file_str, num_traj, bin_width=10., band_width=2.5714, optimize_bw=False, 
                     snap_list=None, traj_example=False):

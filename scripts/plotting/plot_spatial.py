@@ -9,6 +9,8 @@ from simulation.solvers.rate_conversions import calculate_k_from_l, calculate_l2
 from scipy.stats import wasserstein_distance
 from datetime import datetime
 # from scripts.runners.run_spatial import make_diff_func
+from scripts.analysis.stationarity import count_switches, plot_time_average, plot_snapshot, find_equilibrate_time
+from scripts.analysis.cme2d_full_model import solve_cme_2d
 
 import os
 from pathlib import Path
@@ -57,7 +59,7 @@ def format_rate_list(rates):
 
 
 
-def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5714, optimize_bw=False, num_div:int=3):
+def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5714, optimize_bw=False, snap_list=None, traj_example=False, num_div:int=3):
     """
     Project Default:
     - We use bw=2.5714 (calculated via GridSearchCV on our reference dataset).
@@ -67,6 +69,15 @@ def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5
             it is set to be True.
                 
     """
+    plt.rcParams.update({
+            'font.size': 18,          # General font size
+            'axes.titlesize': 22,     # Subtitles & top case labels
+            'axes.labelsize': 20,     # Axis labels (X and Y labels)
+            'xtick.labelsize': 18,    # X-axis tick numbers
+            'ytick.labelsize': 18,    # Y-axis tick numbers
+            'legend.fontsize': 18     # Legend font size
+        })
+    
     plot_subbox = False if file_str[0:4]=='homo' else True
     print(f"------ The output is sliced every {slice_val} steps ------")
     print(f"------ for both trajs and distributions ------")
@@ -79,9 +90,7 @@ def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5
     trajectories, combined_data, collective_pos, pos_Time, metadata = load_spatial_full_data(
         file_str=file_str, slice_val=slice_val)
 
-    # --- read the data about parameter settings ---
-    macrorates = metadata['macrorates']
-    macrorates_k = calculate_k_from_l(macrorates)
+
     # --- the result folder to save plots ---
     DATA_DIR = get_data_dir(file_str)
 
@@ -90,8 +99,9 @@ def plot_spatial(file_str, num_traj:int, slice_val, bin_width=2., band_width=2.5
     # =============== DISTRIBUTION + TRAJ PLOTS ==================
     # ============================================================
     if not plot_subbox:
+        print(f'the total number of trajs {len(trajectories)} ')
         plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_width, band_width, num_traj, 
-             macrorates_k, metadata, DATA_DIR)
+                           metadata, DATA_DIR, snap_list, traj_example)
 
 
     if plot_subbox: # if not plot_spatial_dist: -> change to this when I try to see if the system is well-mixed with smaller D.
@@ -178,9 +188,10 @@ def plot_trajectories(trajectories, tau, textstr, fig_title, file_str, run_idx=0
 
 
 def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_width, band_width, num_traj, 
-             macrorates_k, metadata, DATA_DIR):
-    
+                       metadata, DATA_DIR, snap_list=None, traj_example=False):
+    # --- read the data about parameter settings ---
     macrorates = metadata['macrorates']
+    macrorates_k = calculate_k_from_l(macrorates)
     microrates = metadata['microrates']
     t_f = metadata['timespan']
     tau = metadata['timestep']
@@ -190,19 +201,16 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
     vol = np.prod(box_shape)
     a = metadata['a']
     b = metadata['b']
-    '''
-    ori_len_traj = len(trajectories)
-    num_traj = min(ori_len_traj, num_traj)
-    if num_traj < ori_len_traj:
-        trajectories = random.sample(trajectories, num_traj)
 
-    combined_data_X = combined_data['X']
-    '''
+
+    average_switch = count_switches(trajectories, lo=100, hi=180)
+    print(f'for current params, the average switch over timespan={t_f} per traj is {average_switch}.')
+
+    
     ori_len_traj = len(trajectories)
     num_traj = min(ori_len_traj, num_traj)
-    
     if num_traj < ori_len_traj:
-        trajectories = random.sample(trajectories, num_traj)
+        selected_trajectories = random.sample(trajectories, num_traj)
         
         # overwrite the combined_data to ONLY include the sampled trajectories
         combined_data_X = np.concatenate([t['species_log']['X'] for t in trajectories])
@@ -211,27 +219,9 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
         else:
             combined_data_X2 = np.array([])
     else:
+        selected_trajectories = trajectories
         combined_data_X = combined_data['X']
         combined_data_X2 = combined_data.get('X2', np.array([]))
-        
-    # # print the X and X2 statistics
-    # if len(combined_data_X2) > 0:
-    #     # Filter out moments where X is 0 to avoid dividing by zero
-    #     valid_idx = combined_data_X > 0 # 135
-    #     safe_X = combined_data_X[valid_idx]
-    #     safe_X2 = combined_data_X2[valid_idx]
-        
-    #     # Calculate ratio: (X2 * Vol) / (X^2)
-    #     ratio_1 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
-    #     print(f"----- Test: the ratio is {ratio_1:.3f} × 10⁻³ -----")
-    #     k_eff = np.mean(safe_X2*8*2/(safe_X*(safe_X-1)))
-    #     print(f"----- Test: the ratio is {k_eff:.7f}  -----")
-    #     # valid_idx = (combined_data_X < 135) & (combined_data_X > 0)
-    #     # safe_X = combined_data_X[valid_idx]
-    #     # safe_X2 = combined_data_X2[valid_idx]
-    #     # # Calculate ratio: (X2 * Vol) / (X^2)
-    #     # ratio_2 = np.mean(safe_X2 * 8.0 / (safe_X**2)) * 10**3
-    #     # print(f"----- Test: the low ratio is {ratio_2:.3f} \times 10^{{{-3}}} -----")
 
     upper_bound = get_pretty_upper_bound(combined_data_X)
     print(f"The calculated upper bound for #X is {upper_bound}")
@@ -242,82 +232,73 @@ def plot_dist_and_traj(combined_data, trajectories, slice_val, optimize_bw, bin_
             band_width = find_the_best_bw(combined_data_X[:, np.newaxis]) 
             print("Consider updating your default band_width parameter to this new value.")
 
-    hist_bin, density_hist = hist_np(combined_data_X, upper_bound, bin_width)
-    x_axis_plot, kde_X = kde_sk(combined_data_X, upper_bound, band_width)
-    # --- plot the distribution first, otherwise the 'ax' would get overwritten when iterate through axs in trajectories
-    fig_dist, ax = plt.subplots(figsize=(10,8))
-    # analytical results
-    # calculate the corresponding macroscopic reaction rates for the Schlögl model to get the analytical curve
-    
     p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
+    Xmax = int(upper_bound+20)
+    m = Xmax**2 * macrorates[0] / (vol*macrorates[1])
+    Ymax = int(np.ceil(m + 6*np.sqrt(m))) + 10 # Ymax = int(np.ceil(Xmax**2*macrorates[0]/(macrorates[1]*vol)))
+    stat_x = np.arange(0, Xmax+1)
+    stat_p,_ = solve_cme_2d(macrorates, a, b, vol, Xmax=Xmax, Ymax=Ymax)
+    teq = find_equilibrate_time(trajectories, stat_p[:135].sum())
+    print(f"For the current model and initial state, the equilibrated time for the system is around t={teq}.")
 
-    W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
+    if snap_list is None:
+        t_start = [5, 10, 15]
+        fig_dist, ax = plt.subplots(ncols=len(t_start), figsize=(6*len(t_start),6), sharey=True)
+        plot_time_average(selected_trajectories, upper_bound, bin_width, band_width, 
+                            ax, ori_len_traj, t_start=t_start,
+                            stat_sch=[p_states, stat_dist], stat_full=[stat_x, stat_p])
+    else: 
+        T = trajectories[0]['timescale']
+        print(len(T), T[:3], T[-3:], T[1] - T[0])
+        print([np.searchsorted(T, t) for t in (5, 10, 15, 20, 23.5)])
+        fig_snap, axs_snap = plt.subplots(ncols=len(snap_list), figsize=(6*len(snap_list), 6), sharey=True)
+        plot_snapshot(trajectories, snap_list, axs_snap, upper_bound, bin_width, band_width, [p_states, stat_dist], [stat_x, stat_p])
+        fig_snap.suptitle(rf'N={ori_len_traj}', fontsize=16)
     
-    ax.bar(hist_bin, density_hist, width=bin_width, 
-            color='#a9cce3', edgecolor='white', alpha=0.6, label='Simulation')
-    ax.plot(x_axis_plot, kde_X, color='#1f77b4', linewidth=2.5, 
-            zorder=3, label='KDE')
-    ax.plot(p_states, stat_dist, color='#e74c3c', linestyle='--', 
-            linewidth=2, zorder=4, label='Steady-state solution')
-    
-
-    ax.set_title(f'Combined trajectories: {num_traj}')
-    ax.set_xlabel('Particle Count')
-    ax.set_ylabel('Probability')
-    ax.set_xlim(0, upper_bound) # could change this, depending on the setting in simulation.model
-    ax.legend(fontsize='small', loc='upper right')
-    ax.grid(True, linestyle='--', alpha=0.4, which='both')
-    # clean up the frame
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
     exponent = int(np.floor(np.log10(tau)))
     base = tau / 10**exponent
     print(D)
-    if isinstance(D, (list, tuple, np.ndarray)):
+    # Check if it's a list/tuple, OR a numpy array with 1 or more dimensions
+    if isinstance(D, (list, tuple)) or (isinstance(D, np.ndarray) and D.ndim > 0):
         D_print = D[0]
     else:
-        D_print = D
-    # D_print = np.atleast_1d(D)[0]
+        # It's a scalar or a 0-dimensional numpy array (safe to use directly)
+        D_print = D.item() if isinstance(D, np.ndarray) else D
+        # D_print = np.atleast_1d(D)[0]
     print(D_print)
     print(sigma)
-
-    textstr = '\n'.join((
-        rf"$\mathbf{{Rates_{{macro}}}}$: {format_rate_list(macrorates)}",
-        rf"$\mathbf{{Rates_{{micro}}}}$: {format_rate_list(microrates.reshape(-1))}",
-        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D_print:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad BC: Periodic $",
-        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
-    ))
-
-    props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
     
-    # --- Push the plots down ---
-    # --- for distribution plot ---
-    fig_dist.text(0.5, 0.88, textstr, transform=fig_dist.transFigure, fontsize=8,
-            ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
     fig_title = "Bistable System Analysis\n" + rf"$\mathrm{{Spatially\ Resolved\ Full\ Distribution}}$"
     
-    fig_dist.tight_layout(rect=[0, 0, 1, 0.75])
-    fig_dist.suptitle(fig_title,
-                    fontsize=16, y=0.98, fontweight='bold')
-
     # --- Get timestamp for filename ---
     # Format as YYYY-MM-DD_HH-MM-SS
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     file_str = f"{DATA_DIR}_{slice_val}_{timestamp}"
     filename_dist = f"distribution.png"
+    filename_snap = f"snapshots.png"
     
     # --- Create the directory if it doesn't exist ---
     os.makedirs(file_str, exist_ok=True)
-    output_plot_path_dist = os.path.join(file_str, filename_dist)
-    fig_dist.savefig(output_plot_path_dist)
+    if snap_list is None:
+        fig_dist.tight_layout()
+        fig_dist.tight_layout(rect=[0, 0, 1, 0.75])
+        fig_dist.suptitle(fig_title,
+                        fontsize=16, y=0.98, fontweight='bold')
+        output_plot_path_dist = os.path.join(file_str, filename_dist)
+        fig_dist.savefig(output_plot_path_dist)
+    else:
+        output_plot_path_snap = os.path.join(file_str, filename_snap)
+        fig_snap.savefig(output_plot_path_snap)
 
-    # --- for trajectories plots ---
-    plot_trajectories(trajectories, tau, textstr, fig_title, file_str)
-    print(f"Saved trajectoris and distribution plots to {file_str}")
+    if traj_example:
+        # --- for trajectories plots ---
+        textstr = None
+        plot_trajectories(trajectories, tau, textstr, fig_title, file_str)
+        print(f"Saved trajectoris and distribution plots to {file_str}")
+    else:
+        print("No trajectory example printed.")
 
-    plt.close(fig_dist)
-    # plt.show()
+    plt.close('all')
 
 
 def plot_subbox_trajs(collective_pos_X, pos_Time, num_traj, metadata, DATA_DIR, num_division=2):
@@ -494,14 +475,30 @@ def main():
     The slice_val only affect the analysis of simulations with homogeneous Diffusion coefficients
     """
 
-    filestr = 'hetero_Dx1_tf_6.0_medium_gradient_L_280_750.0_tau_2e-06' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
+    filestr = 'homo_tf_24.0_D_1500.0' # 'homo_updated_tf_24.0_1500.0_tau_1e-06' # 'homo_tf_24.0_D_1500.0'
 
     slice_val = 10000 # 10000 for tau=1e-6
-                     
-    plot_spatial(filestr, num_traj=2, slice_val=slice_val, num_div=2)
+    snap_list = None # [5, 10, 15, 20, 23.5] # None 
+    plot_spatial(filestr, num_traj=200, slice_val=slice_val, num_div=2, bin_width=10, snap_list=snap_list, traj_example=False)
 
 
 
 
 if __name__ == "__main__":
     main()
+
+'''
+textstr = '\n'.join((
+        rf"$\mathbf{{Rates_{{macro}}}}$: {format_rate_list(macrorates)}",
+        rf"$\mathbf{{Rates_{{micro}}}}$: {format_rate_list(microrates.reshape(-1))}",
+        rf"$\sigma: {sigma:.2f}\quad  | \quad D:{D_print:.1f} \quad  | \quad $Domain$: {box_shape[0]}\times {box_shape[1]}\times {box_shape[2]}\ (V={vol:.1f})\quad | \quad BC: Periodic $",
+        rf"$c_a ={a:.1f}\quad | \quad c_b ={b:.1f} \quad | \quad \tau: {base:.2f} \times 10^{{{exponent}}} \quad | \quad T_{{final}}: {t_f:.1f} \quad | \quad W_d:{W_d:.5f}$" 
+    ))
+
+    props = dict(boxstyle='square,pad=0.4', facecolor='white', edgecolor='black', linewidth=0.8)
+    
+    # --- Push the plots down ---
+    # --- for distribution plot ---
+    fig_dist.text(0.5, 0.88, textstr, transform=fig_dist.transFigure, fontsize=8,
+            ha='center', va='top', multialignment='left', bbox=props, linespacing=1.2)
+'''

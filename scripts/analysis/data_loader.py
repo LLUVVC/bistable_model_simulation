@@ -130,8 +130,8 @@ def load_spatial_full_data(file_str, slice_val=10000):
     for f in data_files:
         try:
             with np.load(f, allow_pickle=True) as data:
-                
-                t_data = data['Time'][::slice_val].copy()
+                tau = data['tau']
+                t_data = data['Time'][::slice_val].copy() * tau
 
                 run_species_log = {}
 
