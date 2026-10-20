@@ -36,7 +36,7 @@ def get_data_dir(file_str: str) -> Path:
 
 from scripts.analysis.data_loader import load_well_mixed_data, load_spatial_full_data
 from scipy.stats import wasserstein_distance
-from simulation.models.analytical_curve import get_analytical_curve
+from scripts.analysis.cme1d_schloegl_model import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from scripts.analysis.analyze_distributions import get_pretty_upper_bound, kde_sk
 from joblib import Parallel, delayed

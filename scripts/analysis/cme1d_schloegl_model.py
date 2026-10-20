@@ -58,5 +58,16 @@ def get_analytical_curve(n_x_max, k, a, b, vol):
 
 
 
+from scipy.linalg import eigvalsh_tridiagonal
 
+def schloegl_relaxation(n_x_max, k, a, b, vol, n_eig=4):
+    x = np.arange(n_x_max)
+    lamb = a*k[0]*x*(x-1)/vol + b*k[2]*vol
+    mu   = x*k[3] + k[1]*x*(x-1)*(x-2)/vol**2
+    lamb[-1] = 0.0                       # reflecting top boundary
+    diag = -(lamb + mu)
+    off  = np.sqrt(lamb[:-1] * mu[1:])   # births i->i+1 times deaths i+1->i
+    w = eigvalsh_tridiagonal(diag, off)  # ascending; w[-1] ~ 0 is the stationary mode
+    w = np.sort(w)[::-1]
+    return w[:n_eig], 1/np.abs(w[1:n_eig])   # lambdas, tau_2, tau_3, ...
 

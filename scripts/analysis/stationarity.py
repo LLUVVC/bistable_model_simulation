@@ -64,15 +64,16 @@ def plot_time_average(trajectories, upper_bound, bin_width, band_width,
             W_d = wasserstein_distance(p_states, x_axis_plot, stat_dist, kde_X) # W(asserstein)_d(istance)
             print(f"the wasserstein distance is {W_d}")
             ax.plot(p_states, stat_dist*100, color='#e74c3c', 
-                        linewidth=2.5, zorder=4, label='Schlögl model') # '#f39c12' # linestyle='--'
+                        linewidth=1.5, zorder=1, label='Schlögl model') # '#f39c12' # linestyle='--'
         ax.bar(hist_bin, density_hist*100, width=bin_width, 
             color='#a9cce3', alpha=0.6) # '#d5d8dc'# edgecolor='white',
-        ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=2.5, 
-                zorder=3, label='Stationary dist. (Simulation KDE)') # '#2e4053'
+        ax.plot(x_axis_plot, kde_X*100, color='#1f77b4', linewidth=1.5, 
+                zorder=2, label='Stationary dist. (Simulation KDE)') # '#2e4053'
         
         if stat_full is not None:
             stat_x, stat_p = stat_full
-            ax.plot(stat_x, stat_p*100, color='black', linestyle='--', linewidth=3.5, label='Stationary dist. (2D-CME)')
+            ax.plot(stat_x, stat_p*100, color='black', linestyle='--', linewidth=2., 
+                    zorder=999, label='Stationary dist. (2D-CME)')
 
         ax.set_title(f'N = {ori_len_traj}, t ≥ {t}')
         # ax.set_title(f'Combined trajectories: {ori_len_traj}')
@@ -110,7 +111,7 @@ def plot_snapshot(trajs, snap_list, axs_snap, upper_bound, bin_width, band_width
         if stat_full is not None:
             stat_x, stat_p = stat_full
             print(f'The calculated low peak area is {stat_p[:135].sum()}.')   # lower-state weight, two thresholds # , the high peak area is {stat_p[150:].sum()}
-            ax.plot(stat_x, stat_p*100, color='black', linewidth=3.5, linestyle='--', label='Stationary dist. (2D-CME)')  
+            ax.plot(stat_x, stat_p*100, color='black', linewidth=3., linestyle='--', label='Stationary dist. (2D-CME)')  
             W_d = wasserstein_distance(stat_x[:upper_bound], x_axis_plot, stat_p[:upper_bound], kde_X) # W(asserstein)_d(istance)
             print(f"the wasserstein distance to the extended Schlögl model is {W_d}.")
             """ should i normalize wd by two peak difference: ~220 ???"""
@@ -125,7 +126,9 @@ def plot_snapshot(trajs, snap_list, axs_snap, upper_bound, bin_width, band_width
     return axs_snap
 
 def find_equilibrate_time(trajs, p_exact):
-
+    """
+    from trajectories
+    """
     times = np.arange(5, 500, 5)
     p_low = np.array([np.mean(snapshot(trajs, t) < 135) for t in times])
     se = np.sqrt(p_exact*(1-p_exact)/len(trajs))

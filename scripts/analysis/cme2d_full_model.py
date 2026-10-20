@@ -13,6 +13,7 @@ Check that the returned P is ~0 at the boundary, otherwise enlarge Xmax / Ymax.
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spl
+from scipy.sparse.linalg import eigs
 
 
 def solve_cme_2d(l, a, b, V, Xmax, Ymax):
@@ -57,6 +58,20 @@ def solve_cme_2d(l, a, b, V, Xmax, Ymax):
     if abs(PX.min())<10**(-14):
         PX = np.clip(PX, 0.0, None)
         PX /= PX.sum()                  # changes the total by ~1e-16, i.e. nothing
+
+    
+
+    vals = eigs(QT.tocsc(), k=4, sigma=1e-3, which='LM', return_eigenvectors=False)
+    # vals = vals[np.argsort(-vals.real)]          # 0, lambda_2, lambda_3, ...
+    # vals = vals[np.argsort(-vals.real)]
+    # tau2, tau3 = 1/abs(vals[1].real), 1/abs(vals[2].real)
+    vals = vals[np.argsort(-vals.real)]
+    nz = vals[np.abs(vals) > 1e-8]          # drop the stationary eigenvalue
+    tau2 = 1 / abs(nz[0].real)              # slowest non-zero mode
+    tau3 = 1 / abs(nz[1].real)
+
+    
+    print(vals, tau2, tau3)
     return PX, P             # marginal P(X = x), joint P(X, X2)
 
 

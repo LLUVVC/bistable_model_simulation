@@ -18,7 +18,7 @@ if project_root not in sys.path:
 
 from scripts.analysis.data_loader import load_spatial_full_data
 from scripts.analysis.analyze_distributions import hist_np, kde_sk, get_pretty_upper_bound
-from simulation.models.analytical_curve import get_analytical_curve
+from scripts.analysis.cme1d_schloegl_model import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from scipy.stats import wasserstein_distance
 from matplotlib.ticker import ScalarFormatter

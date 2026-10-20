@@ -3,7 +3,7 @@ import numpy as np
 import random 
 from scripts.analysis.data_loader import load_well_mixed_data
 from scripts.analysis.analyze_distributions import find_the_best_bw, get_pretty_upper_bound
-from simulation.models.analytical_curve import get_analytical_curve
+from scripts.analysis.cme1d_schloegl_model import get_analytical_curve
 from simulation.solvers.rate_conversions import calculate_k_from_l
 from datetime import datetime
 from scripts.analysis.cme2d_full_model import solve_cme_2d
@@ -186,6 +186,8 @@ def plot_well_mixed(file_str, num_traj, bin_width=10., band_width=2.5714, optimi
         stat_p,_ = solve_cme_2d(macrorates, a, b, vol, Xmax=Xmax, Ymax=Ymax)
         teq = find_equilibrate_time(trajectories, stat_p[:135].sum())
         print(f"For the current model and initial state, the equilibrated time for the system is around t={teq}.")
+        if teq is None:
+            teq=0.0
         macrorates_k = calculate_k_from_l(macrorates)  
         p_states, stat_dist = get_analytical_curve(upper_bound, macrorates_k, a, b, vol)
         if snap_list is None:
@@ -271,7 +273,7 @@ def main():
     it can be manually change to True if needed.
     
     """
-    filestr =  "schloegl_model_0.15_0.025_tf_500.0_tau5e-07_initX_100" # 'full_model_7.5_1500.0_tf_500.0_tau5e-7_initX_100' # 
+    filestr =  "full_model_1.5_7500.0_tf_500.0_tau1e-7_initX_100" # 'full_model_7.5_1500.0_tf_500.0_tau5e-7_initX_100' # 
 
     snap_list =  None # [50, 100, 250, 450, 495] # None 
 
