@@ -50,8 +50,13 @@ def solve_cme_2d(l, a, b, V, Xmax, Ymax):
 
     n = int(nx * ny)
     QT = sp.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)).tolil()
-    QT[0, :] = 1.0                      # replace one equation by normalization sum(P) = 1
+    Q = QT.tocsc().copy()
+    QT = QT.tolil()
+    
+    # replace one equation by normalization sum(P) = 1
+    QT[0, :] = 1.0                  
     rhs = np.zeros(n); rhs[0] = 1.0
+
     P = spl.spsolve(QT.tocsc(), rhs).reshape(nx, ny)
     PX = P.sum(axis=1)
     print(f'The minimum 2D-CME solver entry is {PX.min()}.')                 # keep this: shows the size of the numerical noise
@@ -59,24 +64,17 @@ def solve_cme_2d(l, a, b, V, Xmax, Ymax):
         PX = np.clip(PX, 0.0, None)
         PX /= PX.sum()                  # changes the total by ~1e-16, i.e. nothing
 
-    
-
-    vals = eigs(QT.tocsc(), k=4, sigma=1e-3, which='LM', return_eigenvectors=False)
-    # vals = vals[np.argsort(-vals.real)]          # 0, lambda_2, lambda_3, ...
-    # vals = vals[np.argsort(-vals.real)]
-    # tau2, tau3 = 1/abs(vals[1].real), 1/abs(vals[2].real)
+    vals = eigs(Q, k=4, sigma=1e-3, which='LM', return_eigenvectors=False)
     vals = vals[np.argsort(-vals.real)]
     nz = vals[np.abs(vals) > 1e-8]          # drop the stationary eigenvalue
     tau2 = 1 / abs(nz[0].real)              # slowest non-zero mode
     tau3 = 1 / abs(nz[1].real)
 
-    
     print(vals, tau2, tau3)
-    return PX, P             # marginal P(X = x), joint P(X, X2)
-
+    return PX, P, tau2, tau3           # marginal P(X = x), joint P(X, X2)
 
 if __name__ == "__main__":
     a, b, V = 10.0, 20.0, 8.0
     l = (37.5, 1500, 6, 1, 5.75, 25)    # K_eq = 0.025
-    PX, P = solve_cme_2d(l, a, b, V, 420, 400)
+    PX, P, _, _ = solve_cme_2d(l, a, b, V, 420, 400)
     print("P(X<150) =", PX[:150].sum(), " boundary mass:", P[-1, :].sum(), P[:, -1].sum())
